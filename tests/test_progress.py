@@ -1,0 +1,101 @@
+from __future__ import annotations
+
+from datetime import date, timedelta
+
+import pytest
+
+from scheduler.repositories import Repository
+from scheduler.services.progress_service import ProgressService
+
+
+def test_weighted_progress_aggregation(session):
+    base = date(2026, 3, 2)
+    repo = Repository(session)
+
+    project = repo.create_project(
+        name="Weighted Project",
+        deadline=base + timedelta(days=20),
+        participants=[("A", "a@example.com")],
+    )
+    phase = repo.add_phase(project.id, name="P1", objective="Obj")
+    owner = repo.list_project_participants(project.id)[0]
+
+    g1 = repo.add_goal(
+        phase_id=phase.id,
+        title="g1",
+        owner_participant_id=owner.id,
+        milestone_date=base + timedelta(days=1),
+        deadline=base + timedelta(days=5),
+        weight=1,
+    )
+    g2 = repo.add_goal(
+        phase_id=phase.id,
+        title="g2",
+        owner_participant_id=owner.id,
+        milestone_date=base + timedelta(days=2),
+        deadline=base + timedelta(days=6),
+        weight=3,
+    )
+
+    svc = ProgressService(repo)
+    svc.record_progress(g1.id, base, 50, updated_by="pm")
+    svc.record_progress(g2.id, base, 100, updated_by="pm")
+
+    summary = svc.build_project_progress(project.id, base)
+    assert summary.progress_percent == 87.5
+    assert summary.completed_goals == 1
+    assert summary.total_goals == 2
+
+
+def test_progress_rollback_requires_note(session):
+    base = date(2026, 3, 2)
+    repo = Repository(session)
+
+    project = repo.create_project(
+        name="Rollback",
+        deadline=base + timedelta(days=20),
+        participants=[("A", "a@example.com")],
+    )
+    phase = repo.add_phase(project.id, name="P1", objective="Obj")
+    owner = repo.list_project_participants(project.id)[0]
+    goal = repo.add_goal(
+        phase_id=phase.id,
+        title="g1",
+        owner_participant_id=owner.id,
+        milestone_date=base + timedelta(days=1),
+        deadline=base + timedelta(days=5),
+        weight=1,
+    )
+
+    svc = ProgressService(repo)
+    svc.record_progress(goal.id, base, 80, updated_by="pm")
+
+    with pytest.raises(ValueError, match="回退"):
+        svc.record_progress(goal.id, base, 70, updated_by="pm")
+
+    svc.record_progress(goal.id, base, 70, updated_by="pm", note="拆分范围，重估")
+
+
+def test_progress_rejects_out_of_range(session):
+    base = date(2026, 3, 2)
+    repo = Repository(session)
+
+    project = repo.create_project(
+        name="Range",
+        deadline=base + timedelta(days=20),
+        participants=[("A", "a@example.com")],
+    )
+    phase = repo.add_phase(project.id, name="P1", objective="Obj")
+    owner = repo.list_project_participants(project.id)[0]
+    goal = repo.add_goal(
+        phase_id=phase.id,
+        title="g1",
+        owner_participant_id=owner.id,
+        milestone_date=base + timedelta(days=1),
+        deadline=base + timedelta(days=5),
+        weight=1,
+    )
+
+    svc = ProgressService(repo)
+    with pytest.raises(ValueError, match="0-100"):
+        svc.record_progress(goal.id, base, 101, updated_by="pm")

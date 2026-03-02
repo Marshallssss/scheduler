@@ -1,0 +1,30 @@
+# 项目月报
+
+- 生成时间: {{ generated_at }}
+- 周期: {{ start_date }} ~ {{ end_date }}
+- 进度更新条数: {{ update_count }}
+- 回退备注条数: {{ rollback_count }}
+
+{% if not projects %}
+当前无活跃项目。
+{% endif %}
+{% for project in projects %}
+## 项目 {{ project.id }}: {{ project.name }}
+
+- 项目截止日期: {{ project.deadline }}
+- 总完成率: {{ "%.2f"|format(project.overall_progress) }}%
+- 目标完成数: {{ project.completed_goals }}/{{ project.total_goals }}
+
+### 阶段进度
+{% for phase in project.phases %}
+- {{ phase.name }}: {{ "%.2f"|format(phase.progress) }}% ({{ phase.completed_goals }}/{{ phase.total_goals }})
+{% endfor %}
+
+### 目标明细
+| 阶段 | 目标 | 负责人 | 完成率 | 权重 | 里程碑 | 截止日期 |
+|---|---|---|---:|---:|---|---|
+{% for goal in project.goals %}
+| {{ goal.phase_name }} | {{ goal.title }} | {{ goal.owner }} | {{ "%.2f"|format(goal.progress) }}% | {{ "%.2f"|format(goal.weight) }} | {{ goal.milestone_date }} | {{ goal.deadline }} |
+{% endfor %}
+
+{% endfor %}
