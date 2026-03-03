@@ -28,6 +28,24 @@
         background: radial-gradient(circle at 85% 0%, #d8f3e8 0%, transparent 34%),
           radial-gradient(circle at 4% 25%, #ddebfa 0%, transparent 30%), var(--bg);
         color: var(--text);
+        transition: background 0.2s ease, color 0.2s ease;
+      }
+
+      body.theme-dark {
+        --bg: #0f1115;
+        --panel: #181b20;
+        --panel-soft: #21252c;
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --line: #323843;
+        --shadow: 0 16px 34px rgba(0, 0, 0, 0.35);
+        --brand: #0d9488;
+        --brand-deep: #0f766e;
+        --good: #22c55e;
+        --warn: #f59e0b;
+        --bad: #ef4444;
+        background: radial-gradient(circle at 88% 0%, #1f2937 0%, transparent 38%),
+          radial-gradient(circle at 10% 20%, #111827 0%, transparent 35%), var(--bg);
       }
 
       .container {
@@ -98,6 +116,41 @@
       .btn-primary { color: #fff; background: linear-gradient(135deg, var(--brand), var(--brand-deep)); }
       .btn-secondary { color: #1c4d40; background: #d9eee6; }
       .btn-danger { color: #fff; background: #b91c1c; }
+
+      body.theme-dark .badge {
+        border-color: #3c4450;
+        background: #1f242b;
+        color: #d1d5db;
+      }
+
+      body.theme-dark .status {
+        border-color: #3c4450;
+        background: #1b2027;
+        color: #d1d5db;
+      }
+
+      body.theme-dark .status.ok {
+        color: #86efac;
+        border-color: #2e5c42;
+        background: #13281c;
+      }
+
+      body.theme-dark .status.warn {
+        color: #fcd34d;
+        border-color: #5c4925;
+        background: #2a2418;
+      }
+
+      body.theme-dark .status.error {
+        color: #fca5a5;
+        border-color: #5c2c2c;
+        background: #2b1717;
+      }
+
+      body.theme-dark .btn-secondary {
+        color: #e5e7eb;
+        background: #313843;
+      }
 
       .layout {
         display: grid;
@@ -269,6 +322,49 @@
         overflow: hidden;
       }
 
+      body.theme-dark .project-card {
+        border-color: #3b424d;
+        background: #1b1f26;
+      }
+
+      body.theme-dark .phase-card {
+        border-color: #3b424d;
+        background: #1f242c;
+      }
+
+      body.theme-dark .progress-wrap {
+        background: #323845;
+      }
+
+      body.theme-dark th,
+      body.theme-dark td {
+        border-bottom-color: #3a414d;
+      }
+
+      body.theme-dark th {
+        color: #cbd5e1;
+      }
+
+      body.theme-dark .empty {
+        border-color: #3b424d;
+        background: #1f242c;
+      }
+
+      body.theme-dark .gantt {
+        border-color: #3b424d;
+        background: #1f242c;
+      }
+
+      body.theme-dark .gantt-track {
+        background: repeating-linear-gradient(
+          90deg,
+          #2c3340,
+          #2c3340 10%,
+          #252b35 10%,
+          #252b35 20%
+        );
+      }
+
       .gantt-bar {
         position: absolute;
         top: 3px;
@@ -312,6 +408,7 @@
         </div>
         <div class="auth-bar">
           <div id="currentUser" class="badge">未登录</div>
+          <button id="themeToggle" class="btn-secondary" type="button">夜间模式</button>
           <button id="refreshNow" class="btn-secondary hidden" type="button">立即刷新</button>
           <button id="logoutBtn" class="btn-danger hidden" type="button">登出</button>
         </div>
@@ -499,9 +596,11 @@
     <script>
       const POLL_MS = 15000;
       const TOKEN_KEY = "scheduler_web_token";
+      const THEME_KEY = "scheduler_web_theme";
 
       const state = {
         token: localStorage.getItem(TOKEN_KEY) || "",
+        theme: localStorage.getItem(THEME_KEY) || "",
         me: null,
         projects: [],
         users: [],
@@ -514,6 +613,7 @@
       const dom = {
         statusBar: document.getElementById("statusBar"),
         currentUser: document.getElementById("currentUser"),
+        themeToggle: document.getElementById("themeToggle"),
         refreshNow: document.getElementById("refreshNow"),
         logoutBtn: document.getElementById("logoutBtn"),
         authPanel: document.getElementById("authPanel"),
@@ -567,6 +667,28 @@
       function showStatus(message, kind = "ok") {
         dom.statusBar.textContent = message;
         dom.statusBar.className = `status ${kind}`;
+      }
+
+      function resolveInitialTheme() {
+        if (state.theme === "dark" || state.theme === "light") {
+          return state.theme;
+        }
+        if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+          return "dark";
+        }
+        return "light";
+      }
+
+      function applyTheme(theme) {
+        const useDark = theme === "dark";
+        document.body.classList.toggle("theme-dark", useDark);
+        state.theme = useDark ? "dark" : "light";
+        localStorage.setItem(THEME_KEY, state.theme);
+        dom.themeToggle.textContent = useDark ? "浅色模式" : "夜间模式";
+      }
+
+      function toggleTheme() {
+        applyTheme(state.theme === "dark" ? "light" : "dark");
       }
 
       function escapeHtml(value) {
@@ -1157,6 +1279,7 @@
       }
 
       function initDefaults() {
+        applyTheme(resolveInitialTheme());
         dom.projectDeadline.value = todayISO();
         dom.goalMilestoneDate.value = todayISO();
         dom.goalDeadline.value = todayISO();
@@ -1167,6 +1290,7 @@
       }
 
       function bindEvents() {
+        dom.themeToggle.addEventListener("click", toggleTheme);
         dom.refreshNow.addEventListener("click", () => refreshAll(false));
         dom.logoutBtn.addEventListener("click", handleLogout);
 
