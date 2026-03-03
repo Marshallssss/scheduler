@@ -391,3 +391,72 @@ def test_owner_permissions(settings):
         },
     )
     assert allowed_progress.status_code == 201
+
+
+def test_admin_can_update_and_delete_phase_goal(settings):
+    app = create_app(settings)
+    client = TestClient(app)
+    admin_headers = _bootstrap_admin(client)
+
+    project_resp = client.post(
+        "/api/projects",
+        headers=admin_headers,
+        json={
+            "name": "CRUD Project",
+            "deadline": _iso(40),
+            "participants": [{"name": "Owner", "email": "owner@example.com"}],
+        },
+    )
+    assert project_resp.status_code == 201
+    project = project_resp.json()
+
+    phase_resp = client.post(
+        "/api/phases",
+        headers=admin_headers,
+        json={
+            "project_id": project["id"],
+            "name": "Phase Old",
+            "objective": "old objective",
+        },
+    )
+    assert phase_resp.status_code == 201
+    phase_id = phase_resp.json()["id"]
+
+    update_phase_resp = client.put(
+        f"/api/phases/{phase_id}",
+        headers=admin_headers,
+        json={"name": "Phase New", "objective": "new objective"},
+    )
+    assert update_phase_resp.status_code == 200
+    assert update_phase_resp.json()["name"] == "Phase New"
+
+    owner_id = project["participants"][0]["id"]
+    goal_resp = client.post(
+        "/api/goals",
+        headers=admin_headers,
+        json={
+            "phase_id": phase_id,
+            "title": "Goal Old",
+            "owner_participant_id": owner_id,
+            "milestone_date": _iso(3),
+            "deadline": _iso(8),
+            "weight": 1,
+        },
+    )
+    assert goal_resp.status_code == 201
+    goal_id = goal_resp.json()["id"]
+
+    update_goal_resp = client.put(
+        f"/api/goals/{goal_id}",
+        headers=admin_headers,
+        json={"title": "Goal New", "weight": 2},
+    )
+    assert update_goal_resp.status_code == 200
+    assert update_goal_resp.json()["title"] == "Goal New"
+    assert update_goal_resp.json()["weight"] == 2
+
+    delete_goal_resp = client.delete(f"/api/goals/{goal_id}", headers=admin_headers)
+    assert delete_goal_resp.status_code == 204
+
+    delete_phase_resp = client.delete(f"/api/phases/{phase_id}", headers=admin_headers)
+    assert delete_phase_resp.status_code == 204

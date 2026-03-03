@@ -60,6 +60,123 @@ class ProjectService:
         issue_module: Optional[str] = None,
         issue_total_di: Optional[float] = None,
     ):
+        return self._create_or_update_goal(
+            phase_id=phase_id,
+            title=title,
+            owner_participant_id=owner_participant_id,
+            milestone_date=milestone_date,
+            deadline=deadline,
+            weight=weight,
+            goal_type=goal_type,
+            requirement_priority=requirement_priority,
+            issue_module=issue_module,
+            issue_total_di=issue_total_di,
+            goal_id=None,
+        )
+
+    def update_phase(
+        self,
+        phase_id: int,
+        name: Optional[str] = None,
+        objective: Optional[str] = None,
+        order_index: Optional[int] = None,
+    ):
+        phase = self.repo.get_phase(phase_id)
+        if phase is None:
+            raise ValueError(f"阶段不存在: {phase_id}")
+
+        if name is not None:
+            clean_name = name.strip()
+            if not clean_name:
+                raise ValueError("阶段名称不能为空")
+            phase.name = clean_name
+        if objective is not None:
+            clean_objective = objective.strip()
+            if not clean_objective:
+                raise ValueError("阶段目标不能为空")
+            phase.objective = clean_objective
+        if order_index is not None:
+            phase.order_index = order_index
+
+        self.repo.session.flush()
+        return phase
+
+    def delete_phase(self, phase_id: int) -> None:
+        phase = self.repo.get_phase(phase_id)
+        if phase is None:
+            raise ValueError(f"阶段不存在: {phase_id}")
+        self.repo.session.delete(phase)
+        self.repo.session.flush()
+
+    def update_goal(
+        self,
+        goal_id: int,
+        title: Optional[str] = None,
+        owner_participant_id: Optional[int] = None,
+        milestone_date: Optional[date] = None,
+        deadline: Optional[date] = None,
+        weight: Optional[float] = None,
+        goal_type: Optional[str] = None,
+        requirement_priority: Optional[int] = None,
+        issue_module: Optional[str] = None,
+        issue_total_di: Optional[float] = None,
+    ):
+        goal = self.repo.get_goal(goal_id)
+        if goal is None:
+            raise ValueError(f"目标不存在: {goal_id}")
+
+        use_title = goal.title if title is None else title
+        use_owner_id = goal.owner_participant_id if owner_participant_id is None else owner_participant_id
+        use_milestone = goal.milestone_date if milestone_date is None else milestone_date
+        use_deadline = goal.deadline if deadline is None else deadline
+        use_weight = goal.weight if weight is None else weight
+        use_goal_type = goal.goal_type if goal_type is None else goal_type
+        use_requirement_priority = goal.requirement_priority if requirement_priority is None else requirement_priority
+        use_issue_module = goal.issue_module if issue_module is None else issue_module
+        use_issue_total_di = goal.issue_total_di if issue_total_di is None else issue_total_di
+
+        if use_goal_type == GOAL_TYPE_REQUIREMENT:
+            use_issue_module = None
+            use_issue_total_di = None
+        if use_goal_type == GOAL_TYPE_ISSUE:
+            use_requirement_priority = None
+
+        updated_goal = self._create_or_update_goal(
+            phase_id=goal.phase_id,
+            title=use_title,
+            owner_participant_id=use_owner_id,
+            milestone_date=use_milestone,
+            deadline=use_deadline,
+            weight=use_weight,
+            goal_type=use_goal_type,
+            requirement_priority=use_requirement_priority,
+            issue_module=use_issue_module,
+            issue_total_di=use_issue_total_di,
+            goal_id=goal_id,
+        )
+        return updated_goal
+
+    def delete_goal(self, goal_id: int) -> None:
+        goal = self.repo.get_goal(goal_id)
+        if goal is None:
+            raise ValueError(f"目标不存在: {goal_id}")
+        self.repo.session.delete(goal)
+        self.repo.session.flush()
+
+    def _create_or_update_goal(
+        self,
+        phase_id: int,
+        title: str,
+        owner_participant_id: int,
+        milestone_date: date,
+        deadline: date,
+        weight: Optional[float],
+        goal_type: str,
+        requirement_priority: Optional[int],
+        issue_module: Optional[str],
+        issue_total_di: Optional[float],
+        goal_id: Optional[int],
+    ):
         phase = self.repo.get_phase(phase_id)
         if phase is None:
             raise ValueError(f"阶段不存在: {phase_id}")
@@ -107,15 +224,31 @@ class ProjectService:
         if use_weight <= 0:
             raise ValueError("权重必须大于 0")
 
-        return self.repo.add_goal(
-            phase_id=phase_id,
-            title=title.strip(),
-            owner_participant_id=owner_participant_id,
-            milestone_date=milestone_date,
-            deadline=deadline,
-            weight=use_weight,
-            goal_type=normalized_goal_type,
-            requirement_priority=requirement_priority,
-            issue_module=use_issue_module,
-            issue_total_di=use_issue_total_di,
-        )
+        if goal_id is None:
+            return self.repo.add_goal(
+                phase_id=phase_id,
+                title=title.strip(),
+                owner_participant_id=owner_participant_id,
+                milestone_date=milestone_date,
+                deadline=deadline,
+                weight=use_weight,
+                goal_type=normalized_goal_type,
+                requirement_priority=requirement_priority,
+                issue_module=use_issue_module,
+                issue_total_di=use_issue_total_di,
+            )
+
+        goal = self.repo.get_goal(goal_id)
+        if goal is None:
+            raise ValueError(f"目标不存在: {goal_id}")
+        goal.title = title.strip()
+        goal.owner_participant_id = owner_participant_id
+        goal.milestone_date = milestone_date
+        goal.deadline = deadline
+        goal.weight = use_weight
+        goal.goal_type = normalized_goal_type
+        goal.requirement_priority = requirement_priority
+        goal.issue_module = use_issue_module
+        goal.issue_total_di = use_issue_total_di
+        self.repo.session.flush()
+        return goal

@@ -170,14 +170,41 @@
       .panel h3 { margin: 0; font-size: 15px; }
 
       .auth-panel { grid-column: span 12; }
+      .main-tabs { grid-column: span 12; }
+      .tab-page { grid-column: span 12; display: grid; gap: 14px; }
       .admin-users { grid-column: span 4; }
       .project { grid-column: span 4; }
       .phase { grid-column: span 4; }
       .goal { grid-column: span 4; }
+      .phase-edit { grid-column: span 6; }
+      .goal-edit { grid-column: span 6; }
       .progress { grid-column: span 12; }
       .dashboard { grid-column: span 12; }
+      .ops { grid-column: span 12; }
 
       .hidden { display: none !important; }
+
+      .tab-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .tab-btn {
+        border: 1px solid var(--line);
+        background: var(--panel-soft);
+        color: var(--muted);
+      }
+
+      .tab-btn.active {
+        color: #fff;
+        border-color: transparent;
+        background: linear-gradient(135deg, var(--brand), var(--brand-deep));
+      }
+
+      .sub-tab-page {
+        margin-top: 12px;
+      }
 
       .field { display: grid; gap: 5px; margin-bottom: 10px; }
       .field label { font-size: 12px; color: var(--muted); }
@@ -389,7 +416,7 @@
       }
 
       @media (max-width: 1160px) {
-        .admin-users, .project, .phase, .goal { grid-column: span 12; }
+        .admin-users, .project, .phase, .goal, .phase-edit, .goal-edit { grid-column: span 12; }
       }
 
       @media (max-width: 760px) {
@@ -450,179 +477,286 @@
           </form>
         </section>
 
-        <section class="panel admin-users hidden" id="adminUserPanel">
-          <h2>管理员功能：账号管理</h2>
-          <form id="createUserForm">
-            <div class="field">
-              <label for="newUsername">新账号用户名</label>
-              <input id="newUsername" required />
-            </div>
-            <div class="field">
-              <label for="newPassword">新账号密码</label>
-              <input id="newPassword" type="password" minlength="6" required />
-            </div>
-            <div class="field">
-              <label for="newRole">角色</label>
-              <select id="newRole">
-                <option value="owner">owner（负责人）</option>
-                <option value="admin">admin（管理员）</option>
-              </select>
-            </div>
-            <div class="field" id="participantField">
-              <label for="newParticipantId">绑定负责人参与者（owner 必选）</label>
-              <select id="newParticipantId"></select>
-            </div>
-            <button class="btn-primary" type="submit">创建账号</button>
-          </form>
-          <div style="margin-top: 10px;">
-            <h3 style="margin-bottom: 6px;">现有账号</h3>
-            <div id="userList" class="empty">暂无账号</div>
+        <section class="panel main-tabs hidden" id="mainTabsPanel">
+          <div class="tab-buttons">
+            <button id="tabDashboardBtn" class="tab-btn active" type="button">看板与配置</button>
+            <button id="tabAdminBtn" class="tab-btn hidden" type="button">管理员入口</button>
           </div>
         </section>
 
-        <section class="panel project hidden admin-only" id="projectPanel">
-          <h2>创建项目</h2>
-          <form id="projectForm">
-            <div class="field">
-              <label for="projectName">项目名称</label>
-              <input id="projectName" required />
+        <section class="tab-page hidden" id="dashboardTabPage">
+          <section class="panel progress hidden" id="progressPanel">
+            <h2>更新进度</h2>
+            <form id="progressForm">
+              <div class="two-col">
+                <div class="field">
+                  <label for="progressProjectId">项目</label>
+                  <select id="progressProjectId" required></select>
+                </div>
+                <div class="field">
+                  <label for="progressGoalId">目标（仅显示你可更新的）</label>
+                  <select id="progressGoalId" required></select>
+                </div>
+              </div>
+              <div class="two-col">
+                <div class="field">
+                  <label for="progressDate">日期</label>
+                  <input id="progressDate" type="date" required />
+                </div>
+                <div class="field" id="progressPercentField">
+                  <label for="progressValue">完成率 0-100</label>
+                  <input id="progressValue" type="number" min="0" max="100" step="0.01" required />
+                </div>
+                <div class="field hidden" id="progressRemainingDiField">
+                  <label for="progressRemainingDi">剩余 DI</label>
+                  <input id="progressRemainingDi" type="number" min="0" step="0.01" />
+                </div>
+              </div>
+              <p class="hint" id="progressInputHint">需求型目标录入完成率。</p>
+              <div class="field">
+                <label for="progressUpdatedBy">更新人</label>
+                <input id="progressUpdatedBy" value="web_user" required />
+              </div>
+              <div class="field">
+                <label for="progressNote">备注（回退必填）</label>
+                <textarea id="progressNote"></textarea>
+              </div>
+              <button class="btn-primary" type="submit">提交进度</button>
+            </form>
+          </section>
+
+          <section class="panel dashboard hidden" id="dashboardPanel">
+            <h2>实时项目看板 + 甘特图</h2>
+            <div id="dashboard" class="project-grid"></div>
+          </section>
+
+          <section class="panel ops hidden admin-only" id="opsPanel">
+            <h2>创建与维护（位于甘特图下方）</h2>
+            <div class="tab-buttons">
+              <button id="opsProjectBtn" class="tab-btn active" type="button">创建项目</button>
+              <button id="opsPhaseBtn" class="tab-btn" type="button">添加阶段</button>
+              <button id="opsGoalBtn" class="tab-btn" type="button">添加目标</button>
+              <button id="opsPhaseEditBtn" class="tab-btn" type="button">修改/删除阶段</button>
+              <button id="opsGoalEditBtn" class="tab-btn" type="button">修改/删除目标</button>
             </div>
-            <div class="field">
-              <label for="projectDeadline">项目截止日期</label>
-              <input id="projectDeadline" type="date" required />
-            </div>
-            <div class="field">
-              <label for="projectParticipants">参与者（每行：姓名,邮箱）</label>
-              <textarea id="projectParticipants" required placeholder="张三,zhangsan@example.com\n李四,lisi@example.com"></textarea>
-            </div>
-            <button class="btn-primary" type="submit">创建项目</button>
-          </form>
+
+            <section class="sub-tab-page project" id="projectPanel">
+              <form id="projectForm">
+                <div class="field">
+                  <label for="projectName">项目名称</label>
+                  <input id="projectName" required />
+                </div>
+                <div class="field">
+                  <label for="projectDeadline">项目截止日期</label>
+                  <input id="projectDeadline" type="date" required />
+                </div>
+                <div class="field">
+                  <label for="projectParticipants">参与者（每行：姓名,邮箱）</label>
+                  <textarea id="projectParticipants" required placeholder="张三,zhangsan@example.com\n李四,lisi@example.com"></textarea>
+                </div>
+                <button class="btn-primary" type="submit">创建项目</button>
+              </form>
+            </section>
+
+            <section class="sub-tab-page phase hidden" id="phasePanel">
+              <form id="phaseForm">
+                <div class="field">
+                  <label for="phaseProjectId">所属项目</label>
+                  <select id="phaseProjectId" required></select>
+                </div>
+                <div class="field">
+                  <label for="phaseName">阶段名称</label>
+                  <input id="phaseName" required />
+                </div>
+                <div class="field">
+                  <label for="phaseObjective">阶段目标</label>
+                  <textarea id="phaseObjective" required></textarea>
+                </div>
+                <button class="btn-primary" type="submit">添加阶段</button>
+              </form>
+            </section>
+
+            <section class="sub-tab-page goal hidden" id="goalPanel">
+              <form id="goalForm">
+                <div class="field">
+                  <label for="goalPhaseId">所属阶段</label>
+                  <select id="goalPhaseId" required></select>
+                </div>
+                <div class="field">
+                  <label for="goalOwnerId">负责人</label>
+                  <select id="goalOwnerId" required></select>
+                </div>
+                <div class="field">
+                  <label for="goalType">目标类型</label>
+                  <select id="goalType" required>
+                    <option value="requirement">需求型（按完成率）</option>
+                    <option value="issue">问题单型（按剩余 DI）</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="goalTitle">目标标题</label>
+                  <input id="goalTitle" required />
+                </div>
+                <div class="field" id="goalRequirementPriorityField">
+                  <label for="goalRequirementPriority">需求优先级（1 最高，5 最低）</label>
+                  <select id="goalRequirementPriority">
+                    <option value="">不指定</option>
+                    <option value="1">P1</option>
+                    <option value="2">P2</option>
+                    <option value="3">P3</option>
+                    <option value="4">P4</option>
+                    <option value="5">P5</option>
+                  </select>
+                </div>
+                <div id="goalIssueFields" class="hidden">
+                  <div class="field">
+                    <label for="goalIssueModule">问题单模块</label>
+                    <input id="goalIssueModule" placeholder="例如：支付、订单、权限" />
+                  </div>
+                  <div class="field">
+                    <label for="goalIssueTotalDi">问题单总 DI</label>
+                    <input id="goalIssueTotalDi" type="number" min="0.01" step="0.01" />
+                  </div>
+                </div>
+                <div class="two-col">
+                  <div class="field">
+                    <label for="goalMilestoneDate">里程碑日期</label>
+                    <input id="goalMilestoneDate" type="date" required />
+                  </div>
+                  <div class="field">
+                    <label for="goalDeadline">目标截止日期</label>
+                    <input id="goalDeadline" type="date" required />
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="goalWeight">权重</label>
+                  <input id="goalWeight" type="number" min="0.01" step="0.01" value="1" required />
+                </div>
+                <p class="hint">需求型默认按优先级映射权重（P1=5...P5=1）；问题单型可按总 DI 作为权重。</p>
+                <button class="btn-primary" type="submit">添加目标</button>
+              </form>
+            </section>
+
+            <section class="sub-tab-page phase-edit hidden" id="phaseEditPanel">
+              <form id="phaseEditForm">
+                <div class="field">
+                  <label for="phaseEditId">选择阶段</label>
+                  <select id="phaseEditId" required></select>
+                </div>
+                <div class="field">
+                  <label for="phaseEditName">阶段名称</label>
+                  <input id="phaseEditName" required />
+                </div>
+                <div class="field">
+                  <label for="phaseEditObjective">阶段目标</label>
+                  <textarea id="phaseEditObjective" required></textarea>
+                </div>
+                <div class="field">
+                  <label for="phaseEditOrder">排序</label>
+                  <input id="phaseEditOrder" type="number" min="1" step="1" />
+                </div>
+                <div class="tab-buttons">
+                  <button class="btn-primary" type="submit">保存阶段</button>
+                  <button class="btn-danger" id="phaseDeleteBtn" type="button">删除阶段</button>
+                </div>
+              </form>
+            </section>
+
+            <section class="sub-tab-page goal-edit hidden" id="goalEditPanel">
+              <form id="goalEditForm">
+                <div class="field">
+                  <label for="goalEditId">选择目标</label>
+                  <select id="goalEditId" required></select>
+                </div>
+                <div class="field">
+                  <label for="goalEditOwnerId">负责人</label>
+                  <select id="goalEditOwnerId" required></select>
+                </div>
+                <div class="field">
+                  <label for="goalEditType">目标类型</label>
+                  <select id="goalEditType" required>
+                    <option value="requirement">需求型（按完成率）</option>
+                    <option value="issue">问题单型（按剩余 DI）</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="goalEditTitle">目标标题</label>
+                  <input id="goalEditTitle" required />
+                </div>
+                <div class="field" id="goalEditRequirementPriorityField">
+                  <label for="goalEditRequirementPriority">需求优先级</label>
+                  <select id="goalEditRequirementPriority">
+                    <option value="">不指定</option>
+                    <option value="1">P1</option>
+                    <option value="2">P2</option>
+                    <option value="3">P3</option>
+                    <option value="4">P4</option>
+                    <option value="5">P5</option>
+                  </select>
+                </div>
+                <div id="goalEditIssueFields" class="hidden">
+                  <div class="field">
+                    <label for="goalEditIssueModule">问题单模块</label>
+                    <input id="goalEditIssueModule" />
+                  </div>
+                  <div class="field">
+                    <label for="goalEditIssueTotalDi">问题单总 DI</label>
+                    <input id="goalEditIssueTotalDi" type="number" min="0.01" step="0.01" />
+                  </div>
+                </div>
+                <div class="two-col">
+                  <div class="field">
+                    <label for="goalEditMilestoneDate">里程碑日期</label>
+                    <input id="goalEditMilestoneDate" type="date" required />
+                  </div>
+                  <div class="field">
+                    <label for="goalEditDeadline">目标截止日期</label>
+                    <input id="goalEditDeadline" type="date" required />
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="goalEditWeight">权重</label>
+                  <input id="goalEditWeight" type="number" min="0.01" step="0.01" required />
+                </div>
+                <div class="tab-buttons">
+                  <button class="btn-primary" type="submit">保存目标</button>
+                  <button class="btn-danger" id="goalDeleteBtn" type="button">删除目标</button>
+                </div>
+              </form>
+            </section>
+          </section>
         </section>
 
-        <section class="panel phase hidden admin-only" id="phasePanel">
-          <h2>添加阶段</h2>
-          <form id="phaseForm">
-            <div class="field">
-              <label for="phaseProjectId">所属项目</label>
-              <select id="phaseProjectId" required></select>
-            </div>
-            <div class="field">
-              <label for="phaseName">阶段名称</label>
-              <input id="phaseName" required />
-            </div>
-            <div class="field">
-              <label for="phaseObjective">阶段目标</label>
-              <textarea id="phaseObjective" required></textarea>
-            </div>
-            <button class="btn-primary" type="submit">添加阶段</button>
-          </form>
-        </section>
-
-        <section class="panel goal hidden admin-only" id="goalPanel">
-          <h2>添加目标</h2>
-          <form id="goalForm">
-            <div class="field">
-              <label for="goalPhaseId">所属阶段</label>
-              <select id="goalPhaseId" required></select>
-            </div>
-            <div class="field">
-              <label for="goalOwnerId">负责人</label>
-              <select id="goalOwnerId" required></select>
-            </div>
-            <div class="field">
-              <label for="goalType">目标类型</label>
-              <select id="goalType" required>
-                <option value="requirement">需求型（按完成率）</option>
-                <option value="issue">问题单型（按剩余 DI）</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="goalTitle">目标标题</label>
-              <input id="goalTitle" required />
-            </div>
-            <div class="field" id="goalRequirementPriorityField">
-              <label for="goalRequirementPriority">需求优先级（1 最高，5 最低）</label>
-              <select id="goalRequirementPriority">
-                <option value="">不指定</option>
-                <option value="1">P1</option>
-                <option value="2">P2</option>
-                <option value="3">P3</option>
-                <option value="4">P4</option>
-                <option value="5">P5</option>
-              </select>
-            </div>
-            <div id="goalIssueFields" class="hidden">
+        <section class="tab-page hidden" id="adminTabPage">
+          <section class="panel admin-users hidden" id="adminUserPanel">
+            <h2>管理员功能：账号管理</h2>
+            <form id="createUserForm">
               <div class="field">
-                <label for="goalIssueModule">问题单模块</label>
-                <input id="goalIssueModule" placeholder="例如：支付、订单、权限" />
+                <label for="newUsername">新账号用户名</label>
+                <input id="newUsername" required />
               </div>
               <div class="field">
-                <label for="goalIssueTotalDi">问题单总 DI</label>
-                <input id="goalIssueTotalDi" type="number" min="0.01" step="0.01" />
-              </div>
-            </div>
-            <div class="two-col">
-              <div class="field">
-                <label for="goalMilestoneDate">里程碑日期</label>
-                <input id="goalMilestoneDate" type="date" required />
+                <label for="newPassword">新账号密码</label>
+                <input id="newPassword" type="password" minlength="6" required />
               </div>
               <div class="field">
-                <label for="goalDeadline">目标截止日期</label>
-                <input id="goalDeadline" type="date" required />
+                <label for="newRole">角色</label>
+                <select id="newRole">
+                  <option value="owner">owner（负责人）</option>
+                  <option value="admin">admin（管理员）</option>
+                </select>
               </div>
-            </div>
-            <div class="field">
-              <label for="goalWeight">权重</label>
-              <input id="goalWeight" type="number" min="0.01" step="0.01" value="1" required />
-            </div>
-            <p class="hint">需求型默认按优先级映射权重（P1=5...P5=1）；问题单型可按总 DI 作为权重。</p>
-            <button class="btn-primary" type="submit">添加目标</button>
-          </form>
-        </section>
-
-        <section class="panel progress hidden" id="progressPanel">
-          <h2>更新进度</h2>
-          <form id="progressForm">
-            <div class="two-col">
-              <div class="field">
-                <label for="progressProjectId">项目</label>
-                <select id="progressProjectId" required></select>
+              <div class="field" id="participantField">
+                <label for="newParticipantId">绑定负责人参与者（owner 必选）</label>
+                <select id="newParticipantId"></select>
               </div>
-              <div class="field">
-                <label for="progressGoalId">目标（仅显示你可更新的）</label>
-                <select id="progressGoalId" required></select>
-              </div>
+              <button class="btn-primary" type="submit">创建账号</button>
+            </form>
+            <div style="margin-top: 10px;">
+              <h3 style="margin-bottom: 6px;">现有账号</h3>
+              <div id="userList" class="empty">暂无账号</div>
             </div>
-            <div class="two-col">
-              <div class="field">
-                <label for="progressDate">日期</label>
-                <input id="progressDate" type="date" required />
-              </div>
-              <div class="field" id="progressPercentField">
-                <label for="progressValue">完成率 0-100</label>
-                <input id="progressValue" type="number" min="0" max="100" step="0.01" required />
-              </div>
-              <div class="field hidden" id="progressRemainingDiField">
-                <label for="progressRemainingDi">剩余 DI</label>
-                <input id="progressRemainingDi" type="number" min="0" step="0.01" />
-              </div>
-            </div>
-            <p class="hint" id="progressInputHint">需求型目标录入完成率。</p>
-            <div class="field">
-              <label for="progressUpdatedBy">更新人</label>
-              <input id="progressUpdatedBy" value="web_user" required />
-            </div>
-            <div class="field">
-              <label for="progressNote">备注（回退必填）</label>
-              <textarea id="progressNote"></textarea>
-            </div>
-            <button class="btn-primary" type="submit">提交进度</button>
-          </form>
-        </section>
-
-        <section class="panel dashboard hidden" id="dashboardPanel">
-          <h2>实时项目看板 + 甘特图</h2>
-          <div id="dashboard" class="project-grid"></div>
+          </section>
         </section>
       </main>
     </div>
@@ -636,6 +770,8 @@
         token: localStorage.getItem(TOKEN_KEY) || "",
         theme: localStorage.getItem(THEME_KEY) || "",
         me: null,
+        activeMainTab: "dashboard",
+        activeOpsTab: "project",
         projects: [],
         users: [],
         participantOptions: [],
@@ -660,15 +796,31 @@
         newParticipantId: document.getElementById("newParticipantId"),
         participantField: document.getElementById("participantField"),
 
+        mainTabsPanel: document.getElementById("mainTabsPanel"),
+        dashboardTabPage: document.getElementById("dashboardTabPage"),
+        adminTabPage: document.getElementById("adminTabPage"),
+        tabDashboardBtn: document.getElementById("tabDashboardBtn"),
+        tabAdminBtn: document.getElementById("tabAdminBtn"),
+
         projectPanel: document.getElementById("projectPanel"),
         phasePanel: document.getElementById("phasePanel"),
         goalPanel: document.getElementById("goalPanel"),
+        phaseEditPanel: document.getElementById("phaseEditPanel"),
+        goalEditPanel: document.getElementById("goalEditPanel"),
+        opsPanel: document.getElementById("opsPanel"),
+        opsProjectBtn: document.getElementById("opsProjectBtn"),
+        opsPhaseBtn: document.getElementById("opsPhaseBtn"),
+        opsGoalBtn: document.getElementById("opsGoalBtn"),
+        opsPhaseEditBtn: document.getElementById("opsPhaseEditBtn"),
+        opsGoalEditBtn: document.getElementById("opsGoalEditBtn"),
         progressPanel: document.getElementById("progressPanel"),
         dashboardPanel: document.getElementById("dashboardPanel"),
 
         projectForm: document.getElementById("projectForm"),
         phaseForm: document.getElementById("phaseForm"),
         goalForm: document.getElementById("goalForm"),
+        phaseEditForm: document.getElementById("phaseEditForm"),
+        goalEditForm: document.getElementById("goalEditForm"),
         progressForm: document.getElementById("progressForm"),
 
         projectDeadline: document.getElementById("projectDeadline"),
@@ -676,6 +828,11 @@
         phaseProjectId: document.getElementById("phaseProjectId"),
         phaseName: document.getElementById("phaseName"),
         phaseObjective: document.getElementById("phaseObjective"),
+        phaseEditId: document.getElementById("phaseEditId"),
+        phaseEditName: document.getElementById("phaseEditName"),
+        phaseEditObjective: document.getElementById("phaseEditObjective"),
+        phaseEditOrder: document.getElementById("phaseEditOrder"),
+        phaseDeleteBtn: document.getElementById("phaseDeleteBtn"),
 
         goalPhaseId: document.getElementById("goalPhaseId"),
         goalOwnerId: document.getElementById("goalOwnerId"),
@@ -689,6 +846,19 @@
         goalMilestoneDate: document.getElementById("goalMilestoneDate"),
         goalDeadline: document.getElementById("goalDeadline"),
         goalWeight: document.getElementById("goalWeight"),
+        goalEditId: document.getElementById("goalEditId"),
+        goalEditOwnerId: document.getElementById("goalEditOwnerId"),
+        goalEditType: document.getElementById("goalEditType"),
+        goalEditTitle: document.getElementById("goalEditTitle"),
+        goalEditRequirementPriorityField: document.getElementById("goalEditRequirementPriorityField"),
+        goalEditRequirementPriority: document.getElementById("goalEditRequirementPriority"),
+        goalEditIssueFields: document.getElementById("goalEditIssueFields"),
+        goalEditIssueModule: document.getElementById("goalEditIssueModule"),
+        goalEditIssueTotalDi: document.getElementById("goalEditIssueTotalDi"),
+        goalEditMilestoneDate: document.getElementById("goalEditMilestoneDate"),
+        goalEditDeadline: document.getElementById("goalEditDeadline"),
+        goalEditWeight: document.getElementById("goalEditWeight"),
+        goalDeleteBtn: document.getElementById("goalDeleteBtn"),
 
         progressProjectId: document.getElementById("progressProjectId"),
         progressGoalId: document.getElementById("progressGoalId"),
@@ -1037,6 +1207,95 @@
         }
       }
 
+      function syncPhaseEditForm() {
+        const options = [];
+        state.projects.forEach((project) => {
+          project.phases.forEach((phase) => {
+            options.push({
+              value: phase.id,
+              label: `${project.name} / ${phase.name}`,
+            });
+          });
+        });
+        upsertSelectOptions(dom.phaseEditId, options);
+
+        const phase = state.phaseMap.get(Number(dom.phaseEditId.value || 0));
+        if (!phase) {
+          dom.phaseEditName.value = "";
+          dom.phaseEditObjective.value = "";
+          dom.phaseEditOrder.value = "";
+          return;
+        }
+        dom.phaseEditName.value = phase.name || "";
+        dom.phaseEditObjective.value = phase.objective || "";
+        dom.phaseEditOrder.value = String(phase.order_index || "");
+      }
+
+      function syncGoalEditTypeFields() {
+        const isIssue = dom.goalEditType.value === "issue";
+        dom.goalEditIssueFields.classList.toggle("hidden", !isIssue);
+        dom.goalEditRequirementPriorityField.classList.toggle("hidden", isIssue);
+        if (isIssue) {
+          if (!dom.goalEditWeight.value) {
+            dom.goalEditWeight.value = dom.goalEditIssueTotalDi.value || "1";
+          }
+        } else {
+          if (!dom.goalEditWeight.value) {
+            dom.goalEditWeight.value = String(defaultWeightForPriority(dom.goalEditRequirementPriority.value));
+          }
+        }
+      }
+
+      function syncGoalEditOwnersByGoal() {
+        const goal = state.goalMap.get(Number(dom.goalEditId.value || 0));
+        const project = goal ? state.projectMap.get(goal.projectId) : null;
+        const options = (project?.participants || []).map((p) => ({
+          value: p.id,
+          label: `${p.name} <${p.email}>`,
+        }));
+        upsertSelectOptions(dom.goalEditOwnerId, options, goal ? String(goal.owner_participant_id) : "");
+      }
+
+      function syncGoalEditForm() {
+        const options = [];
+        state.projects.forEach((project) => {
+          project.phases.forEach((phase) => {
+            phase.goals.forEach((goal) => {
+              options.push({
+                value: goal.id,
+                label: `${project.name} / ${phase.name} / ${goal.title}`,
+              });
+            });
+          });
+        });
+        upsertSelectOptions(dom.goalEditId, options);
+
+        const goal = state.goalMap.get(Number(dom.goalEditId.value || 0));
+        syncGoalEditOwnersByGoal();
+        if (!goal) {
+          dom.goalEditTitle.value = "";
+          dom.goalEditType.value = "requirement";
+          dom.goalEditRequirementPriority.value = "";
+          dom.goalEditIssueModule.value = "";
+          dom.goalEditIssueTotalDi.value = "";
+          dom.goalEditMilestoneDate.value = "";
+          dom.goalEditDeadline.value = "";
+          dom.goalEditWeight.value = "1";
+          syncGoalEditTypeFields();
+          return;
+        }
+
+        dom.goalEditTitle.value = goal.title || "";
+        dom.goalEditType.value = goal.goal_type || "requirement";
+        dom.goalEditRequirementPriority.value = goal.requirement_priority ? String(goal.requirement_priority) : "";
+        dom.goalEditIssueModule.value = goal.issue_module || "";
+        dom.goalEditIssueTotalDi.value = goal.issue_total_di != null ? String(goal.issue_total_di) : "";
+        dom.goalEditMilestoneDate.value = goal.milestone_date || "";
+        dom.goalEditDeadline.value = goal.deadline || "";
+        dom.goalEditWeight.value = goal.weight != null ? String(goal.weight) : "1";
+        syncGoalEditTypeFields();
+      }
+
       function syncProgressInputMode() {
         const goal = state.goalMap.get(Number(dom.progressGoalId.value || 0));
         const isIssue = goal && goal.goal_type === "issue";
@@ -1090,6 +1349,8 @@
 
         syncGoalOwnersByPhase();
         syncGoalTypeFields();
+        syncPhaseEditForm();
+        syncGoalEditForm();
         syncProgressGoalsByProject();
       }
 
@@ -1101,6 +1362,33 @@
         upsertSelectOptions(dom.newParticipantId, options);
       }
 
+      function setMainTab(tab) {
+        state.activeMainTab = tab === "admin" ? "admin" : "dashboard";
+        const isAdminTab = state.activeMainTab === "admin";
+
+        dom.tabDashboardBtn.classList.toggle("active", !isAdminTab);
+        dom.tabAdminBtn.classList.toggle("active", isAdminTab);
+        dom.dashboardTabPage.classList.toggle("hidden", isAdminTab);
+        dom.adminTabPage.classList.toggle("hidden", !isAdminTab);
+      }
+
+      function setOpsTab(tab) {
+        const valid = new Set(["project", "phase", "goal", "phase-edit", "goal-edit"]);
+        state.activeOpsTab = valid.has(tab) ? tab : "project";
+
+        dom.opsProjectBtn.classList.toggle("active", state.activeOpsTab === "project");
+        dom.opsPhaseBtn.classList.toggle("active", state.activeOpsTab === "phase");
+        dom.opsGoalBtn.classList.toggle("active", state.activeOpsTab === "goal");
+        dom.opsPhaseEditBtn.classList.toggle("active", state.activeOpsTab === "phase-edit");
+        dom.opsGoalEditBtn.classList.toggle("active", state.activeOpsTab === "goal-edit");
+
+        dom.projectPanel.classList.toggle("hidden", state.activeOpsTab !== "project");
+        dom.phasePanel.classList.toggle("hidden", state.activeOpsTab !== "phase");
+        dom.goalPanel.classList.toggle("hidden", state.activeOpsTab !== "goal");
+        dom.phaseEditPanel.classList.toggle("hidden", state.activeOpsTab !== "phase-edit");
+        dom.goalEditPanel.classList.toggle("hidden", state.activeOpsTab !== "goal-edit");
+      }
+
       function updateAuthUi() {
         const loggedIn = !!state.me;
         dom.refreshNow.classList.toggle("hidden", !loggedIn);
@@ -1108,9 +1396,10 @@
 
         if (!loggedIn) {
           dom.currentUser.textContent = "未登录";
-          dom.projectPanel.classList.add("hidden");
-          dom.phasePanel.classList.add("hidden");
-          dom.goalPanel.classList.add("hidden");
+          dom.mainTabsPanel.classList.add("hidden");
+          dom.dashboardTabPage.classList.add("hidden");
+          dom.adminTabPage.classList.add("hidden");
+          dom.opsPanel.classList.add("hidden");
           dom.progressPanel.classList.add("hidden");
           dom.dashboardPanel.classList.add("hidden");
           dom.adminUserPanel.classList.add("hidden");
@@ -1118,21 +1407,26 @@
         }
 
         dom.currentUser.textContent = `${state.me.username} (${state.me.role})`;
-
+        dom.mainTabsPanel.classList.remove("hidden");
         dom.progressPanel.classList.remove("hidden");
         dom.dashboardPanel.classList.remove("hidden");
+        dom.dashboardTabPage.classList.remove("hidden");
 
         if (state.me.role === "admin") {
-          dom.projectPanel.classList.remove("hidden");
-          dom.phasePanel.classList.remove("hidden");
-          dom.goalPanel.classList.remove("hidden");
+          dom.opsPanel.classList.remove("hidden");
+          dom.tabAdminBtn.classList.remove("hidden");
           dom.adminUserPanel.classList.remove("hidden");
         } else {
-          dom.projectPanel.classList.add("hidden");
-          dom.phasePanel.classList.add("hidden");
-          dom.goalPanel.classList.add("hidden");
+          dom.opsPanel.classList.add("hidden");
+          dom.tabAdminBtn.classList.add("hidden");
+          if (state.activeMainTab === "admin") {
+            setMainTab("dashboard");
+          }
           dom.adminUserPanel.classList.add("hidden");
         }
+
+        setMainTab(state.activeMainTab);
+        setOpsTab(state.activeOpsTab);
       }
 
       async function loadProjects(silent = false) {
@@ -1245,6 +1539,8 @@
         state.projects = [];
         state.users = [];
         state.participantOptions = [];
+        state.activeMainTab = "dashboard";
+        state.activeOpsTab = "project";
         state.me = null;
         dom.dashboard.innerHTML = "";
         dom.authPanel.classList.remove("hidden");
@@ -1365,6 +1661,96 @@
         }
       }
 
+      async function handleUpdatePhase(event) {
+        event.preventDefault();
+        try {
+          const phaseId = Number(dom.phaseEditId.value);
+          if (!phaseId) {
+            throw new Error("暂无可编辑阶段");
+          }
+          await requestJson(`/api/phases/${phaseId}`, {
+            method: "PUT",
+            body: JSON.stringify({
+              name: dom.phaseEditName.value.trim(),
+              objective: dom.phaseEditObjective.value.trim(),
+              order_index: Number(dom.phaseEditOrder.value || 1),
+            }),
+          });
+          await refreshAll(true);
+          showStatus("阶段已更新", "ok");
+        } catch (err) {
+          showStatus(err.message, "error");
+        }
+      }
+
+      async function handleDeletePhase() {
+        const phaseId = Number(dom.phaseEditId.value);
+        if (!phaseId) return;
+        if (!window.confirm("删除阶段会一并删除该阶段下所有目标，确认继续？")) return;
+        try {
+          await requestJson(`/api/phases/${phaseId}`, { method: "DELETE" });
+          await refreshAll(true);
+          showStatus("阶段已删除", "ok");
+        } catch (err) {
+          showStatus(err.message, "error");
+        }
+      }
+
+      async function handleUpdateGoal(event) {
+        event.preventDefault();
+        try {
+          const goalId = Number(dom.goalEditId.value);
+          if (!goalId) {
+            throw new Error("暂无可编辑目标");
+          }
+          const goalType = dom.goalEditType.value;
+          const issueTotalDi = Number(dom.goalEditIssueTotalDi.value);
+          if (goalType === "issue") {
+            if (!dom.goalEditIssueModule.value.trim()) {
+              throw new Error("问题单型目标必须填写模块");
+            }
+            if (Number.isNaN(issueTotalDi) || issueTotalDi <= 0) {
+              throw new Error("问题单总 DI 必须大于 0");
+            }
+          }
+
+          await requestJson(`/api/goals/${goalId}`, {
+            method: "PUT",
+            body: JSON.stringify({
+              title: dom.goalEditTitle.value.trim(),
+              owner_participant_id: Number(dom.goalEditOwnerId.value),
+              goal_type: goalType,
+              requirement_priority: goalType === "requirement" && dom.goalEditRequirementPriority.value
+                ? Number(dom.goalEditRequirementPriority.value)
+                : null,
+              issue_module: goalType === "issue" ? dom.goalEditIssueModule.value.trim() : null,
+              issue_total_di: goalType === "issue" ? issueTotalDi : null,
+              milestone_date: dom.goalEditMilestoneDate.value,
+              deadline: dom.goalEditDeadline.value,
+              weight: Number(dom.goalEditWeight.value || 1),
+            }),
+          });
+
+          await refreshAll(true);
+          showStatus("目标已更新", "ok");
+        } catch (err) {
+          showStatus(err.message, "error");
+        }
+      }
+
+      async function handleDeleteGoal() {
+        const goalId = Number(dom.goalEditId.value);
+        if (!goalId) return;
+        if (!window.confirm("确认删除该目标？")) return;
+        try {
+          await requestJson(`/api/goals/${goalId}`, { method: "DELETE" });
+          await refreshAll(true);
+          showStatus("目标已删除", "ok");
+        } catch (err) {
+          showStatus(err.message, "error");
+        }
+      }
+
       async function handleProgress(event) {
         event.preventDefault();
         try {
@@ -1421,11 +1807,17 @@
 
       function initDefaults() {
         applyTheme(resolveInitialTheme());
+        state.activeMainTab = "dashboard";
+        state.activeOpsTab = "project";
         dom.projectDeadline.value = todayISO();
         dom.goalType.value = "requirement";
         dom.goalRequirementPriority.value = "";
         dom.goalIssueModule.value = "";
         dom.goalIssueTotalDi.value = "";
+        dom.goalEditType.value = "requirement";
+        dom.goalEditRequirementPriority.value = "";
+        dom.goalEditIssueModule.value = "";
+        dom.goalEditIssueTotalDi.value = "";
         dom.goalMilestoneDate.value = todayISO();
         dom.goalDeadline.value = todayISO();
         dom.progressDate.value = todayISO();
@@ -1433,6 +1825,9 @@
         dom.newRole.value = "owner";
         toggleParticipantField();
         syncGoalTypeFields();
+        syncGoalEditTypeFields();
+        setMainTab("dashboard");
+        setOpsTab("project");
       }
 
       function bindEvents() {
@@ -1447,7 +1842,11 @@
         dom.projectForm.addEventListener("submit", handleCreateProject);
         dom.phaseForm.addEventListener("submit", handleCreatePhase);
         dom.goalForm.addEventListener("submit", handleCreateGoal);
+        dom.phaseEditForm.addEventListener("submit", handleUpdatePhase);
+        dom.goalEditForm.addEventListener("submit", handleUpdateGoal);
         dom.progressForm.addEventListener("submit", handleProgress);
+        dom.phaseDeleteBtn.addEventListener("click", handleDeletePhase);
+        dom.goalDeleteBtn.addEventListener("click", handleDeleteGoal);
 
         dom.goalPhaseId.addEventListener("change", syncGoalOwnersByPhase);
         dom.goalType.addEventListener("change", syncGoalTypeFields);
@@ -1460,6 +1859,22 @@
         dom.progressProjectId.addEventListener("change", syncProgressGoalsByProject);
         dom.progressGoalId.addEventListener("change", syncProgressInputMode);
         dom.newRole.addEventListener("change", toggleParticipantField);
+        dom.phaseEditId.addEventListener("change", syncPhaseEditForm);
+        dom.goalEditId.addEventListener("change", syncGoalEditForm);
+        dom.goalEditType.addEventListener("change", syncGoalEditTypeFields);
+        dom.goalEditRequirementPriority.addEventListener("change", syncGoalEditTypeFields);
+        dom.goalEditIssueTotalDi.addEventListener("input", () => {
+          if (dom.goalEditType.value === "issue") {
+            dom.goalEditWeight.value = dom.goalEditIssueTotalDi.value || "1";
+          }
+        });
+        dom.tabDashboardBtn.addEventListener("click", () => setMainTab("dashboard"));
+        dom.tabAdminBtn.addEventListener("click", () => setMainTab("admin"));
+        dom.opsProjectBtn.addEventListener("click", () => setOpsTab("project"));
+        dom.opsPhaseBtn.addEventListener("click", () => setOpsTab("phase"));
+        dom.opsGoalBtn.addEventListener("click", () => setOpsTab("goal"));
+        dom.opsPhaseEditBtn.addEventListener("click", () => setOpsTab("phase-edit"));
+        dom.opsGoalEditBtn.addEventListener("click", () => setOpsTab("goal-edit"));
       }
 
       async function boot() {

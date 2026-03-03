@@ -5,7 +5,7 @@ from datetime import date
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, Header, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query, Response
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
@@ -39,6 +39,12 @@ class PhaseCreateInput(BaseModel):
     order_index: Optional[int] = None
 
 
+class PhaseUpdateInput(BaseModel):
+    name: Optional[str] = None
+    objective: Optional[str] = None
+    order_index: Optional[int] = None
+
+
 class GoalCreateInput(BaseModel):
     phase_id: int
     title: str = Field(..., min_length=1)
@@ -46,6 +52,18 @@ class GoalCreateInput(BaseModel):
     milestone_date: date
     deadline: date
     goal_type: str = Field(GOAL_TYPE_REQUIREMENT, min_length=4)
+    requirement_priority: Optional[int] = None
+    issue_module: Optional[str] = None
+    issue_total_di: Optional[float] = None
+    weight: Optional[float] = None
+
+
+class GoalUpdateInput(BaseModel):
+    title: Optional[str] = None
+    owner_participant_id: Optional[int] = None
+    milestone_date: Optional[date] = None
+    deadline: Optional[date] = None
+    goal_type: Optional[str] = None
     requirement_priority: Optional[int] = None
     issue_module: Optional[str] = None
     issue_total_di: Optional[float] = None
@@ -171,6 +189,16 @@ def _goal_to_payload(item: GoalSnapshot, user: UserAccount) -> dict:
         "progress_percent": item.progress,
         "remaining_di": item.remaining_di,
         "editable": _goal_is_editable(item, user),
+    }
+
+
+def _phase_to_payload(phase) -> dict:
+    return {
+        "id": phase.id,
+        "project_id": phase.project_id,
+        "name": phase.name,
+        "objective": phase.objective,
+        "order_index": phase.order_index,
     }
 
 
@@ -494,13 +522,45 @@ def create_app(settings: Settings) -> FastAPI:
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-            return {
-                "id": phase.id,
-                "project_id": phase.project_id,
-                "name": phase.name,
-                "objective": phase.objective,
-                "order_index": phase.order_index,
-            }
+            return _phase_to_payload(phase)
+
+    @app.put("/api/phases/{phase_id}")
+    def update_phase(
+        phase_id: int,
+        payload: PhaseUpdateInput,
+        authorization: Optional[str] = Header(None),
+    ) -> dict:
+        with session_scope(session_factory) as session:
+            repo = Repository(session)
+            project_service = ProjectService(repo)
+            user, _, _ = _require_auth_user(repo, auth_service, authorization)
+            _ensure_admin(user)
+            try:
+                phase = project_service.update_phase(
+                    phase_id=phase_id,
+                    name=payload.name,
+                    objective=payload.objective,
+                    order_index=payload.order_index,
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            return _phase_to_payload(phase)
+
+    @app.delete("/api/phases/{phase_id}", status_code=204, response_class=Response)
+    def delete_phase(
+        phase_id: int,
+        authorization: Optional[str] = Header(None),
+    ) -> Response:
+        with session_scope(session_factory) as session:
+            repo = Repository(session)
+            project_service = ProjectService(repo)
+            user, _, _ = _require_auth_user(repo, auth_service, authorization)
+            _ensure_admin(user)
+            try:
+                project_service.delete_phase(phase_id=phase_id)
+            except ValueError as exc:
+                raise HTTPException(status_code=404, detail=str(exc)) from exc
+            return Response(status_code=204)
 
     @app.post("/api/goals", status_code=201)
     def create_goal(payload: GoalCreateInput, authorization: Optional[str] = Header(None)) -> dict:
@@ -544,6 +604,70 @@ def create_app(settings: Settings) -> FastAPI:
                 "progress_percent": 0.0,
                 "remaining_di": goal.issue_total_di if goal.goal_type == GOAL_TYPE_ISSUE else None,
             }
+
+    @app.put("/api/goals/{goal_id}")
+    def update_goal(
+        goal_id: int,
+        payload: GoalUpdateInput,
+        authorization: Optional[str] = Header(None),
+    ) -> dict:
+        with session_scope(session_factory) as session:
+            repo = Repository(session)
+            project_service = ProjectService(repo)
+            user, _, _ = _require_auth_user(repo, auth_service, authorization)
+            _ensure_admin(user)
+            try:
+                goal = project_service.update_goal(
+                    goal_id=goal_id,
+                    title=payload.title,
+                    owner_participant_id=payload.owner_participant_id,
+                    milestone_date=payload.milestone_date,
+                    deadline=payload.deadline,
+                    weight=payload.weight,
+                    goal_type=payload.goal_type,
+                    requirement_priority=payload.requirement_priority,
+                    issue_module=payload.issue_module,
+                    issue_total_di=payload.issue_total_di,
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+            owner = repo.get_participant(goal.owner_participant_id)
+            latest = repo.latest_progress_update(goal.id, date.today())
+            return {
+                "id": goal.id,
+                "phase_id": goal.phase_id,
+                "title": goal.title,
+                "owner_participant_id": goal.owner_participant_id,
+                "owner_name": owner.name if owner else "",
+                "owner_email": owner.email if owner else "",
+                "weight": goal.weight,
+                "goal_type": goal.goal_type,
+                "requirement_priority": goal.requirement_priority,
+                "issue_module": goal.issue_module,
+                "issue_total_di": goal.issue_total_di,
+                "milestone_date": goal.milestone_date.isoformat(),
+                "deadline": goal.deadline.isoformat(),
+                "status": goal.status,
+                "progress_percent": latest.progress_percent if latest is not None else 0.0,
+                "remaining_di": latest.remaining_di if latest is not None else goal.issue_total_di,
+            }
+
+    @app.delete("/api/goals/{goal_id}", status_code=204, response_class=Response)
+    def delete_goal(
+        goal_id: int,
+        authorization: Optional[str] = Header(None),
+    ) -> Response:
+        with session_scope(session_factory) as session:
+            repo = Repository(session)
+            project_service = ProjectService(repo)
+            user, _, _ = _require_auth_user(repo, auth_service, authorization)
+            _ensure_admin(user)
+            try:
+                project_service.delete_goal(goal_id=goal_id)
+            except ValueError as exc:
+                raise HTTPException(status_code=404, detail=str(exc)) from exc
+            return Response(status_code=204)
 
     @app.post("/api/progress", status_code=201)
     def record_progress(payload: ProgressUpdateInput, authorization: Optional[str] = Header(None)) -> dict:
