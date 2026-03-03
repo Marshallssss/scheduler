@@ -67,6 +67,12 @@ class Goal(Base):
     __table_args__ = (
         CheckConstraint("weight > 0", name="ck_goals_weight_positive"),
         CheckConstraint("status in ('active', 'completed')", name="ck_goals_status"),
+        CheckConstraint("goal_type in ('requirement', 'issue')", name="ck_goals_goal_type"),
+        CheckConstraint(
+            "requirement_priority is null or (requirement_priority >= 1 and requirement_priority <= 5)",
+            name="ck_goals_requirement_priority",
+        ),
+        CheckConstraint("issue_total_di is null or issue_total_di > 0", name="ck_goals_issue_total_di_positive"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -76,6 +82,10 @@ class Goal(Base):
     weight: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     milestone_date: Mapped[date] = mapped_column(Date, nullable=False)
     deadline: Mapped[date] = mapped_column(Date, nullable=False)
+    goal_type: Mapped[str] = mapped_column(String(20), nullable=False, default="requirement")
+    requirement_priority: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    issue_module: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    issue_total_di: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
 
     phase: Mapped[Phase] = relationship(back_populates="goals")
@@ -90,12 +100,14 @@ class GoalProgressUpdate(Base):
     __table_args__ = (
         UniqueConstraint("goal_id", "date", name="uq_goal_progress_goal_date"),
         CheckConstraint("progress_percent >= 0 and progress_percent <= 100", name="ck_progress_range"),
+        CheckConstraint("remaining_di is null or remaining_di >= 0", name="ck_progress_remaining_di_non_negative"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     goal_id: Mapped[int] = mapped_column(ForeignKey("goals.id", ondelete="CASCADE"), nullable=False)
     date: Mapped[date] = mapped_column(Date, nullable=False)
     progress_percent: Mapped[float] = mapped_column(Float, nullable=False)
+    remaining_di: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     updated_by: Mapped[str] = mapped_column(String(120), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)

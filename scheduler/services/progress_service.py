@@ -5,7 +5,7 @@ from datetime import date
 from collections import defaultdict
 from typing import Optional
 
-from scheduler.constants import GOAL_STATUS_ACTIVE, GOAL_STATUS_COMPLETED
+from scheduler.constants import GOAL_STATUS_ACTIVE, GOAL_STATUS_COMPLETED, GOAL_TYPE_ISSUE
 from scheduler.repositories import GoalSnapshot, Repository
 from scheduler.utils import weighted_progress
 
@@ -37,30 +37,60 @@ class ProgressService:
         self,
         goal_id: int,
         update_date: date,
-        progress_percent: float,
+        progress_percent: Optional[float],
         updated_by: str,
         note: Optional[str] = None,
+        remaining_di: Optional[float] = None,
     ):
-        if progress_percent < 0 or progress_percent > 100:
-            raise ValueError("完成率必须在 0-100")
-
         goal = self.repo.get_goal(goal_id)
         if goal is None:
             raise ValueError(f"目标不存在: {goal_id}")
 
-        latest = self.repo.latest_progress_map([goal_id], update_date).get(goal_id, 0.0)
-        if progress_percent < latest and (note is None or not note.strip()):
-            raise ValueError("进度回退时必须填写备注")
+        clean_note = note.strip() if note else None
+        latest = self.repo.latest_progress_update(goal_id, update_date)
+
+        if goal.goal_type == GOAL_TYPE_ISSUE:
+            if goal.issue_total_di is None or goal.issue_total_di <= 0:
+                raise ValueError("问题单型目标缺少总 DI，无法计算进度")
+
+            if remaining_di is None:
+                if progress_percent is None:
+                    raise ValueError("问题单型目标必须填写剩余 DI")
+                if progress_percent < 0 or progress_percent > 100:
+                    raise ValueError("完成率必须在 0-100")
+                remaining_di = round((100 - progress_percent) * goal.issue_total_di / 100, 2)
+
+            if remaining_di < 0:
+                raise ValueError("剩余 DI 不能小于 0")
+
+            latest_remaining = latest.remaining_di if latest and latest.remaining_di is not None else goal.issue_total_di
+            if remaining_di > latest_remaining and clean_note is None:
+                raise ValueError("剩余 DI 增加时必须填写备注")
+
+            computed_progress = round(max(0.0, min(100.0, (goal.issue_total_di - remaining_di) * 100 / goal.issue_total_di)), 2)
+        else:
+            if progress_percent is None:
+                raise ValueError("需求型目标必须填写完成率")
+            if progress_percent < 0 or progress_percent > 100:
+                raise ValueError("完成率必须在 0-100")
+
+            latest_progress = latest.progress_percent if latest is not None else 0.0
+            if progress_percent < latest_progress and clean_note is None:
+                raise ValueError("进度回退时必须填写备注")
+
+            computed_progress = float(progress_percent)
+            remaining_di = None
 
         update = self.repo.upsert_progress(
             goal_id=goal_id,
             update_date=update_date,
-            progress_percent=progress_percent,
-            note=note.strip() if note else None,
+            progress_percent=computed_progress,
+            remaining_di=remaining_di,
+            note=clean_note,
             updated_by=updated_by,
         )
 
-        goal.status = GOAL_STATUS_COMPLETED if progress_percent >= 100 else GOAL_STATUS_ACTIVE
+        goal.status = GOAL_STATUS_COMPLETED if computed_progress >= 100 else GOAL_STATUS_ACTIVE
         return update
 
     def build_project_progress(self, project_id: int, as_of: date) -> ProjectProgress:

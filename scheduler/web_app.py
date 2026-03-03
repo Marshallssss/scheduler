@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
 
 from scheduler.config import Settings
-from scheduler.constants import ROLE_ADMIN, ROLE_OWNER
+from scheduler.constants import GOAL_TYPE_ISSUE, GOAL_TYPE_REQUIREMENT, ROLE_ADMIN, ROLE_OWNER
 from scheduler.db import create_session_factory, init_db, session_scope
 from scheduler.models import Participant, UserAccount
 from scheduler.repositories import GoalSnapshot, Repository
@@ -45,13 +45,18 @@ class GoalCreateInput(BaseModel):
     owner_participant_id: int
     milestone_date: date
     deadline: date
+    goal_type: str = Field(GOAL_TYPE_REQUIREMENT, min_length=4)
+    requirement_priority: Optional[int] = None
+    issue_module: Optional[str] = None
+    issue_total_di: Optional[float] = None
     weight: Optional[float] = None
 
 
 class ProgressUpdateInput(BaseModel):
     goal_id: int
     date: date
-    progress_percent: float
+    progress_percent: Optional[float] = None
+    remaining_di: Optional[float] = None
     updated_by: str = Field("web_ui", min_length=1)
     note: Optional[str] = None
 
@@ -156,10 +161,15 @@ def _goal_to_payload(item: GoalSnapshot, user: UserAccount) -> dict:
         "owner_name": item.owner.name,
         "owner_email": item.owner.email,
         "weight": item.goal.weight,
+        "goal_type": item.goal.goal_type,
+        "requirement_priority": item.goal.requirement_priority,
+        "issue_module": item.goal.issue_module,
+        "issue_total_di": item.goal.issue_total_di,
         "milestone_date": item.goal.milestone_date.isoformat(),
         "deadline": item.goal.deadline.isoformat(),
         "status": item.goal.status,
         "progress_percent": item.progress,
+        "remaining_di": item.remaining_di,
         "editable": _goal_is_editable(item, user),
     }
 
@@ -507,6 +517,10 @@ def create_app(settings: Settings) -> FastAPI:
                     milestone_date=payload.milestone_date,
                     deadline=payload.deadline,
                     weight=payload.weight,
+                    goal_type=payload.goal_type,
+                    requirement_priority=payload.requirement_priority,
+                    issue_module=payload.issue_module,
+                    issue_total_di=payload.issue_total_di,
                 )
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -520,10 +534,15 @@ def create_app(settings: Settings) -> FastAPI:
                 "owner_name": owner.name if owner else "",
                 "owner_email": owner.email if owner else "",
                 "weight": goal.weight,
+                "goal_type": goal.goal_type,
+                "requirement_priority": goal.requirement_priority,
+                "issue_module": goal.issue_module,
+                "issue_total_di": goal.issue_total_di,
                 "milestone_date": goal.milestone_date.isoformat(),
                 "deadline": goal.deadline.isoformat(),
                 "status": goal.status,
                 "progress_percent": 0.0,
+                "remaining_di": goal.issue_total_di if goal.goal_type == GOAL_TYPE_ISSUE else None,
             }
 
     @app.post("/api/progress", status_code=201)
@@ -551,6 +570,7 @@ def create_app(settings: Settings) -> FastAPI:
                     goal_id=payload.goal_id,
                     update_date=payload.date,
                     progress_percent=payload.progress_percent,
+                    remaining_di=payload.remaining_di,
                     updated_by=payload.updated_by,
                     note=payload.note,
                 )
@@ -566,6 +586,7 @@ def create_app(settings: Settings) -> FastAPI:
                 "goal_id": update.goal_id,
                 "date": update.date.isoformat(),
                 "progress_percent": update.progress_percent,
+                "remaining_di": update.remaining_di,
                 "note": update.note,
                 "updated_by": update.updated_by,
                 "project_id": phase.project_id,

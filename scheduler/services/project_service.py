@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Optional
 
+from scheduler.constants import GOAL_TYPE_ISSUE, GOAL_TYPE_REQUIREMENT, GOAL_TYPES
 from scheduler.repositories import Repository
 
 
@@ -54,6 +55,10 @@ class ProjectService:
         milestone_date: date,
         deadline: date,
         weight: Optional[float],
+        goal_type: str = GOAL_TYPE_REQUIREMENT,
+        requirement_priority: Optional[int] = None,
+        issue_module: Optional[str] = None,
+        issue_total_di: Optional[float] = None,
     ):
         phase = self.repo.get_phase(phase_id)
         if phase is None:
@@ -76,7 +81,29 @@ class ProjectService:
         if deadline > project.deadline:
             raise ValueError("小目标截止日期不能晚于项目截止日期")
 
-        use_weight = 1.0 if weight is None else weight
+        normalized_goal_type = goal_type.strip().lower()
+        if normalized_goal_type not in GOAL_TYPES:
+            raise ValueError("goal_type 仅支持 requirement 或 issue")
+
+        normalized_issue_module = issue_module.strip() if issue_module else None
+
+        if normalized_goal_type == GOAL_TYPE_REQUIREMENT:
+            if requirement_priority is not None and not (1 <= requirement_priority <= 5):
+                raise ValueError("需求优先级必须在 1-5 之间")
+            default_weight = float(6 - requirement_priority) if requirement_priority is not None else 1.0
+            use_weight = default_weight if weight is None else weight
+            use_issue_module = None
+            use_issue_total_di = None
+        else:
+            if issue_total_di is None or issue_total_di <= 0:
+                raise ValueError("问题单型目标必须提供大于 0 的总 DI")
+            if not normalized_issue_module:
+                raise ValueError("问题单型目标必须填写模块")
+            use_weight = issue_total_di if weight is None else weight
+            use_issue_module = normalized_issue_module
+            use_issue_total_di = issue_total_di
+            requirement_priority = None
+
         if use_weight <= 0:
             raise ValueError("权重必须大于 0")
 
@@ -87,4 +114,8 @@ class ProjectService:
             milestone_date=milestone_date,
             deadline=deadline,
             weight=use_weight,
+            goal_type=normalized_goal_type,
+            requirement_priority=requirement_priority,
+            issue_module=use_issue_module,
+            issue_total_di=use_issue_total_di,
         )

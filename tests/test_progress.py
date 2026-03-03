@@ -99,3 +99,67 @@ def test_progress_rejects_out_of_range(session):
     svc = ProgressService(repo)
     with pytest.raises(ValueError, match="0-100"):
         svc.record_progress(goal.id, base, 101, updated_by="pm")
+
+
+def test_issue_goal_tracks_progress_by_remaining_di(session):
+    base = date(2026, 3, 2)
+    repo = Repository(session)
+
+    project = repo.create_project(
+        name="Issue DI",
+        deadline=base + timedelta(days=20),
+        participants=[("A", "a@example.com")],
+    )
+    phase = repo.add_phase(project.id, name="P1", objective="Obj")
+    owner = repo.list_project_participants(project.id)[0]
+    goal = repo.add_goal(
+        phase_id=phase.id,
+        title="issue-goal",
+        owner_participant_id=owner.id,
+        milestone_date=base + timedelta(days=1),
+        deadline=base + timedelta(days=5),
+        weight=1,
+        goal_type="issue",
+        issue_module="支付",
+        issue_total_di=50,
+    )
+
+    svc = ProgressService(repo)
+    update = svc.record_progress(goal.id, base, progress_percent=None, remaining_di=20, updated_by="pm")
+    assert update.progress_percent == 60.0
+    assert update.remaining_di == 20
+
+    summary = svc.build_project_progress(project.id, base)
+    assert summary.progress_percent == 60.0
+
+
+def test_issue_goal_remaining_di_increase_requires_note(session):
+    base = date(2026, 3, 2)
+    repo = Repository(session)
+
+    project = repo.create_project(
+        name="Issue rollback",
+        deadline=base + timedelta(days=20),
+        participants=[("A", "a@example.com")],
+    )
+    phase = repo.add_phase(project.id, name="P1", objective="Obj")
+    owner = repo.list_project_participants(project.id)[0]
+    goal = repo.add_goal(
+        phase_id=phase.id,
+        title="issue-goal",
+        owner_participant_id=owner.id,
+        milestone_date=base + timedelta(days=1),
+        deadline=base + timedelta(days=5),
+        weight=1,
+        goal_type="issue",
+        issue_module="订单",
+        issue_total_di=30,
+    )
+
+    svc = ProgressService(repo)
+    svc.record_progress(goal.id, base, progress_percent=None, remaining_di=10, updated_by="pm")
+
+    with pytest.raises(ValueError, match="剩余 DI"):
+        svc.record_progress(goal.id, base, progress_percent=None, remaining_di=12, updated_by="pm")
+
+    svc.record_progress(goal.id, base, progress_percent=None, remaining_di=12, updated_by="pm", note="新增问题单")

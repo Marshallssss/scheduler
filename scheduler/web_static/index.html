@@ -530,8 +530,36 @@
               <select id="goalOwnerId" required></select>
             </div>
             <div class="field">
+              <label for="goalType">目标类型</label>
+              <select id="goalType" required>
+                <option value="requirement">需求型（按完成率）</option>
+                <option value="issue">问题单型（按剩余 DI）</option>
+              </select>
+            </div>
+            <div class="field">
               <label for="goalTitle">目标标题</label>
               <input id="goalTitle" required />
+            </div>
+            <div class="field" id="goalRequirementPriorityField">
+              <label for="goalRequirementPriority">需求优先级（1 最高，5 最低）</label>
+              <select id="goalRequirementPriority">
+                <option value="">不指定</option>
+                <option value="1">P1</option>
+                <option value="2">P2</option>
+                <option value="3">P3</option>
+                <option value="4">P4</option>
+                <option value="5">P5</option>
+              </select>
+            </div>
+            <div id="goalIssueFields" class="hidden">
+              <div class="field">
+                <label for="goalIssueModule">问题单模块</label>
+                <input id="goalIssueModule" placeholder="例如：支付、订单、权限" />
+              </div>
+              <div class="field">
+                <label for="goalIssueTotalDi">问题单总 DI</label>
+                <input id="goalIssueTotalDi" type="number" min="0.01" step="0.01" />
+              </div>
             </div>
             <div class="two-col">
               <div class="field">
@@ -547,6 +575,7 @@
               <label for="goalWeight">权重</label>
               <input id="goalWeight" type="number" min="0.01" step="0.01" value="1" required />
             </div>
+            <p class="hint">需求型默认按优先级映射权重（P1=5...P5=1）；问题单型可按总 DI 作为权重。</p>
             <button class="btn-primary" type="submit">添加目标</button>
           </form>
         </section>
@@ -569,11 +598,16 @@
                 <label for="progressDate">日期</label>
                 <input id="progressDate" type="date" required />
               </div>
-              <div class="field">
+              <div class="field" id="progressPercentField">
                 <label for="progressValue">完成率 0-100</label>
                 <input id="progressValue" type="number" min="0" max="100" step="0.01" required />
               </div>
+              <div class="field hidden" id="progressRemainingDiField">
+                <label for="progressRemainingDi">剩余 DI</label>
+                <input id="progressRemainingDi" type="number" min="0" step="0.01" />
+              </div>
             </div>
+            <p class="hint" id="progressInputHint">需求型目标录入完成率。</p>
             <div class="field">
               <label for="progressUpdatedBy">更新人</label>
               <input id="progressUpdatedBy" value="web_user" required />
@@ -645,7 +679,13 @@
 
         goalPhaseId: document.getElementById("goalPhaseId"),
         goalOwnerId: document.getElementById("goalOwnerId"),
+        goalType: document.getElementById("goalType"),
         goalTitle: document.getElementById("goalTitle"),
+        goalRequirementPriorityField: document.getElementById("goalRequirementPriorityField"),
+        goalRequirementPriority: document.getElementById("goalRequirementPriority"),
+        goalIssueFields: document.getElementById("goalIssueFields"),
+        goalIssueModule: document.getElementById("goalIssueModule"),
+        goalIssueTotalDi: document.getElementById("goalIssueTotalDi"),
         goalMilestoneDate: document.getElementById("goalMilestoneDate"),
         goalDeadline: document.getElementById("goalDeadline"),
         goalWeight: document.getElementById("goalWeight"),
@@ -653,7 +693,11 @@
         progressProjectId: document.getElementById("progressProjectId"),
         progressGoalId: document.getElementById("progressGoalId"),
         progressDate: document.getElementById("progressDate"),
+        progressPercentField: document.getElementById("progressPercentField"),
+        progressRemainingDiField: document.getElementById("progressRemainingDiField"),
+        progressInputHint: document.getElementById("progressInputHint"),
         progressValue: document.getElementById("progressValue"),
+        progressRemainingDi: document.getElementById("progressRemainingDi"),
         progressUpdatedBy: document.getElementById("progressUpdatedBy"),
         progressNote: document.getElementById("progressNote"),
 
@@ -787,6 +831,22 @@
         }
       }
 
+      function defaultWeightForPriority(priority) {
+        const p = Number(priority);
+        if (!Number.isInteger(p) || p < 1 || p > 5) return 1;
+        return 6 - p;
+      }
+
+      function goalTypeLabel(goal) {
+        if (goal.goal_type === "issue") {
+          return `问题单 / ${goal.issue_module || "未分模块"}`;
+        }
+        if (goal.requirement_priority) {
+          return `需求 / P${goal.requirement_priority}`;
+        }
+        return "需求 / 未分级";
+      }
+
       function chipClass(value) {
         const n = Number(value);
         if (n >= 80) return "good";
@@ -831,6 +891,9 @@
             const left = (startDay / totalDays) * 100;
             const width = (duration / totalDays) * 100;
             const fill = Math.max(0, Math.min(100, Number(goal.progress_percent || 0)));
+            const progressText = goal.goal_type === "issue"
+              ? `${fill.toFixed(2)}% | 剩余DI:${Number(goal.remaining_di ?? goal.issue_total_di ?? 0).toFixed(2)}`
+              : `${fill.toFixed(2)}%`;
 
             return `<div class="gantt-row">
               <div class="gantt-label" title="${escapeHtml(goal.phaseName)} / ${escapeHtml(goal.title)}">${escapeHtml(goal.phaseName)} / ${escapeHtml(goal.title)}</div>
@@ -840,7 +903,7 @@
                     <div class="gantt-fill" style="width:${fill}%;"></div>
                   </div>
                 </div>
-                <div class="gantt-meta">${escapeHtml(goal.milestone_date)} ~ ${escapeHtml(goal.deadline)} | 负责人：${escapeHtml(goal.owner_name)} | 进度：${fill.toFixed(2)}%</div>
+                <div class="gantt-meta">${escapeHtml(goal.milestone_date)} ~ ${escapeHtml(goal.deadline)} | 负责人：${escapeHtml(goal.owner_name)} | 进度：${escapeHtml(progressText)}</div>
               </div>
             </div>`;
           })
@@ -881,16 +944,22 @@
                 const phaseProgress = Number(phase.summary.progress_percent || 0);
                 const goalsRows = phase.goals.length
                   ? phase.goals
-                      .map((goal) => `<tr>
+                      .map((goal) => {
+                        const progressText = goal.goal_type === "issue"
+                          ? `${Number(goal.progress_percent).toFixed(2)}% / DI:${Number(goal.remaining_di ?? goal.issue_total_di ?? 0).toFixed(2)}`
+                          : `${Number(goal.progress_percent).toFixed(2)}%`;
+                        return `<tr>
                       <td>${escapeHtml(goal.title)}</td>
+                      <td>${escapeHtml(goalTypeLabel(goal))}</td>
                       <td>${escapeHtml(goal.owner_name)}</td>
-                      <td><span class="chip ${chipClass(goal.progress_percent)}">${Number(goal.progress_percent).toFixed(2)}%</span></td>
+                      <td><span class="chip ${chipClass(goal.progress_percent)}">${escapeHtml(progressText)}</span></td>
                       <td>${Number(goal.weight).toFixed(2)}</td>
                       <td>${escapeHtml(goal.milestone_date)}</td>
                       <td>${escapeHtml(goal.deadline)}</td>
-                    </tr>`)
+                    </tr>`;
+                      })
                       .join("")
-                  : '<tr><td colspan="6">暂无目标</td></tr>';
+                  : '<tr><td colspan="7">暂无目标</td></tr>';
 
                 return `<div class="phase-card">
                   <div class="phase-head">
@@ -901,7 +970,7 @@
                   <div class="progress-wrap"><div class="progress-bar" style="width:${Math.max(0, Math.min(100, phaseProgress))}%"></div></div>
                   <div class="meta">完成目标：${phase.summary.completed_goals}/${phase.summary.total_goals}</div>
                   <table>
-                    <thead><tr><th>目标</th><th>负责人</th><th>进度</th><th>权重</th><th>里程碑</th><th>截止</th></tr></thead>
+                    <thead><tr><th>目标</th><th>类型</th><th>负责人</th><th>进度</th><th>权重</th><th>里程碑</th><th>截止</th></tr></thead>
                     <tbody>${goalsRows}</tbody>
                   </table>
                 </div>`;
@@ -952,6 +1021,40 @@
         upsertSelectOptions(dom.goalOwnerId, options);
       }
 
+      function syncGoalTypeFields() {
+        const isIssue = dom.goalType.value === "issue";
+        dom.goalIssueFields.classList.toggle("hidden", !isIssue);
+        dom.goalRequirementPriorityField.classList.toggle("hidden", isIssue);
+
+        if (isIssue) {
+          if (!dom.goalIssueTotalDi.value) {
+            dom.goalIssueTotalDi.value = "1";
+          }
+          dom.goalWeight.value = dom.goalIssueTotalDi.value || "1";
+        } else {
+          const priority = dom.goalRequirementPriority.value;
+          dom.goalWeight.value = String(defaultWeightForPriority(priority));
+        }
+      }
+
+      function syncProgressInputMode() {
+        const goal = state.goalMap.get(Number(dom.progressGoalId.value || 0));
+        const isIssue = goal && goal.goal_type === "issue";
+
+        dom.progressPercentField.classList.toggle("hidden", !!isIssue);
+        dom.progressRemainingDiField.classList.toggle("hidden", !isIssue);
+
+        if (isIssue) {
+          const currentRemaining = Number(goal.remaining_di ?? goal.issue_total_di ?? 0);
+          dom.progressRemainingDi.value = Number.isFinite(currentRemaining) ? currentRemaining.toFixed(2) : "0";
+          dom.progressInputHint.textContent = `问题单型目标：按剩余 DI 跟踪（当前剩余 ${dom.progressRemainingDi.value}）`;
+        } else {
+          const currentProgress = Number(goal ? goal.progress_percent : 0);
+          dom.progressValue.value = Number.isFinite(currentProgress) ? currentProgress.toFixed(2) : "0";
+          dom.progressInputHint.textContent = "需求型目标：录入完成率 0-100。";
+        }
+      }
+
       function syncProgressGoalsByProject() {
         const project = state.projectMap.get(Number(dom.progressProjectId.value || 0));
         const options = [];
@@ -959,13 +1062,17 @@
           phase.goals
             .filter((goal) => goal.editable)
             .forEach((goal) => {
+              const progressText = goal.goal_type === "issue"
+                ? `${Number(goal.progress_percent).toFixed(2)}% / DI:${Number(goal.remaining_di ?? goal.issue_total_di ?? 0).toFixed(2)}`
+                : `${Number(goal.progress_percent).toFixed(2)}%`;
               options.push({
                 value: goal.id,
-                label: `${phase.name} / ${goal.title} (${Number(goal.progress_percent).toFixed(2)}%)`,
+                label: `${phase.name} / ${goal.title} (${progressText})`,
               });
             });
         });
         upsertSelectOptions(dom.progressGoalId, options);
+        syncProgressInputMode();
       }
 
       function refreshSelectors() {
@@ -982,6 +1089,7 @@
         upsertSelectOptions(dom.goalPhaseId, phaseOpts);
 
         syncGoalOwnersByPhase();
+        syncGoalTypeFields();
         syncProgressGoalsByProject();
       }
 
@@ -1218,19 +1326,38 @@
       async function handleCreateGoal(event) {
         event.preventDefault();
         try {
+          const goalType = dom.goalType.value;
+          const issueTotalDi = Number(dom.goalIssueTotalDi.value);
+          if (goalType === "issue") {
+            if (!dom.goalIssueModule.value.trim()) {
+              throw new Error("问题单型目标必须填写模块");
+            }
+            if (Number.isNaN(issueTotalDi) || issueTotalDi <= 0) {
+              throw new Error("问题单总 DI 必须大于 0");
+            }
+          }
+
           await requestJson("/api/goals", {
             method: "POST",
             body: JSON.stringify({
               phase_id: Number(dom.goalPhaseId.value),
               title: dom.goalTitle.value.trim(),
               owner_participant_id: Number(dom.goalOwnerId.value),
+              goal_type: goalType,
+              requirement_priority: goalType === "requirement" && dom.goalRequirementPriority.value
+                ? Number(dom.goalRequirementPriority.value)
+                : null,
+              issue_module: goalType === "issue" ? dom.goalIssueModule.value.trim() : null,
+              issue_total_di: goalType === "issue" ? issueTotalDi : null,
               milestone_date: dom.goalMilestoneDate.value,
               deadline: dom.goalDeadline.value,
               weight: Number(dom.goalWeight.value || 1),
             }),
           });
           dom.goalForm.reset();
+          dom.goalType.value = "requirement";
           dom.goalWeight.value = "1";
+          syncGoalTypeFields();
           await refreshAll(true);
           showStatus("目标添加成功", "ok");
         } catch (err) {
@@ -1243,15 +1370,27 @@
         try {
           const goalId = Number(dom.progressGoalId.value);
           const goal = state.goalMap.get(goalId);
-          const value = Number(dom.progressValue.value);
           const note = dom.progressNote.value.trim();
 
-          if (Number.isNaN(value) || value < 0 || value > 100) {
-            throw new Error("完成率必须在 0-100");
-          }
-
-          if (goal && value < Number(goal.progress_percent || 0) && !note) {
-            throw new Error("回退进度必须填写备注");
+          let progressPercent = null;
+          let remainingDi = null;
+          if (goal && goal.goal_type === "issue") {
+            remainingDi = Number(dom.progressRemainingDi.value);
+            const latestRemaining = Number(goal.remaining_di ?? goal.issue_total_di ?? 0);
+            if (Number.isNaN(remainingDi) || remainingDi < 0) {
+              throw new Error("剩余 DI 不能小于 0");
+            }
+            if (remainingDi > latestRemaining && !note) {
+              throw new Error("剩余 DI 增加时必须填写备注");
+            }
+          } else {
+            progressPercent = Number(dom.progressValue.value);
+            if (Number.isNaN(progressPercent) || progressPercent < 0 || progressPercent > 100) {
+              throw new Error("完成率必须在 0-100");
+            }
+            if (goal && progressPercent < Number(goal.progress_percent || 0) && !note) {
+              throw new Error("回退进度必须填写备注");
+            }
           }
 
           await requestJson("/api/progress", {
@@ -1259,13 +1398,15 @@
             body: JSON.stringify({
               goal_id: goalId,
               date: dom.progressDate.value,
-              progress_percent: value,
+              progress_percent: progressPercent,
+              remaining_di: remainingDi,
               updated_by: dom.progressUpdatedBy.value.trim(),
               note: note || null,
             }),
           });
 
           dom.progressNote.value = "";
+          dom.progressRemainingDi.value = "";
           await refreshAll(true);
           showStatus("进度更新成功", "ok");
         } catch (err) {
@@ -1281,12 +1422,17 @@
       function initDefaults() {
         applyTheme(resolveInitialTheme());
         dom.projectDeadline.value = todayISO();
+        dom.goalType.value = "requirement";
+        dom.goalRequirementPriority.value = "";
+        dom.goalIssueModule.value = "";
+        dom.goalIssueTotalDi.value = "";
         dom.goalMilestoneDate.value = todayISO();
         dom.goalDeadline.value = todayISO();
         dom.progressDate.value = todayISO();
         dom.progressUpdatedBy.value = "web_user";
         dom.newRole.value = "owner";
         toggleParticipantField();
+        syncGoalTypeFields();
       }
 
       function bindEvents() {
@@ -1304,7 +1450,15 @@
         dom.progressForm.addEventListener("submit", handleProgress);
 
         dom.goalPhaseId.addEventListener("change", syncGoalOwnersByPhase);
+        dom.goalType.addEventListener("change", syncGoalTypeFields);
+        dom.goalRequirementPriority.addEventListener("change", syncGoalTypeFields);
+        dom.goalIssueTotalDi.addEventListener("input", () => {
+          if (dom.goalType.value === "issue") {
+            dom.goalWeight.value = dom.goalIssueTotalDi.value || "1";
+          }
+        });
         dom.progressProjectId.addEventListener("change", syncProgressGoalsByProject);
+        dom.progressGoalId.addEventListener("change", syncProgressInputMode);
         dom.newRole.addEventListener("change", toggleParticipantField);
       }
 

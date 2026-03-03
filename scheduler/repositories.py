@@ -28,6 +28,7 @@ class GoalSnapshot:
     phase: Phase
     owner: Participant
     progress: float
+    remaining_di: Optional[float]
 
 
 class Repository:
@@ -114,6 +115,10 @@ class Repository:
         milestone_date: date,
         deadline: date,
         weight: float = 1.0,
+        goal_type: str = "requirement",
+        requirement_priority: Optional[int] = None,
+        issue_module: Optional[str] = None,
+        issue_total_di: Optional[float] = None,
     ) -> Goal:
         goal = Goal(
             phase_id=phase_id,
@@ -122,6 +127,10 @@ class Repository:
             milestone_date=milestone_date,
             deadline=deadline,
             weight=weight,
+            goal_type=goal_type,
+            requirement_priority=requirement_priority,
+            issue_module=issue_module,
+            issue_total_di=issue_total_di,
             status="active",
         )
         self.session.add(goal)
@@ -139,7 +148,7 @@ class Repository:
 
     def list_goal_snapshots_by_project(self, project_id: int, as_of: date) -> list[GoalSnapshot]:
         goals = self.list_goals_by_project(project_id)
-        progress_map = self.latest_progress_map([goal.id for goal in goals], as_of)
+        progress_state_map = self.latest_progress_state_map([goal.id for goal in goals], as_of)
 
         phase_map = {phase.id: phase for phase in self.session.scalars(select(Phase).where(Phase.project_id == project_id))}
         project = self.get_project(project_id)
@@ -154,13 +163,15 @@ class Repository:
             return snapshots
 
         for goal in goals:
+            progress_state = progress_state_map.get(goal.id)
             snapshots.append(
                 GoalSnapshot(
                     goal=goal,
                     project=project,
                     phase=phase_map[goal.phase_id],
                     owner=owner_map[goal.owner_participant_id],
-                    progress=progress_map.get(goal.id, 0.0),
+                    progress=progress_state["progress_percent"] if progress_state else 0.0,
+                    remaining_di=progress_state["remaining_di"] if progress_state else None,
                 )
             )
         return snapshots
@@ -178,21 +189,23 @@ class Repository:
         if not rows:
             return []
         goal_ids = [row[0].id for row in rows]
-        progress_map = self.latest_progress_map(goal_ids, as_of)
+        progress_state_map = self.latest_progress_state_map(goal_ids, as_of)
         snapshots: list[GoalSnapshot] = []
         for goal, phase, project, owner in rows:
+            progress_state = progress_state_map.get(goal.id)
             snapshots.append(
                 GoalSnapshot(
                     goal=goal,
                     phase=phase,
                     project=project,
                     owner=owner,
-                    progress=progress_map.get(goal.id, 0.0),
+                    progress=progress_state["progress_percent"] if progress_state else 0.0,
+                    remaining_di=progress_state["remaining_di"] if progress_state else None,
                 )
             )
         return snapshots
 
-    def latest_progress_map(self, goal_ids: list[int], as_of: date) -> dict[int, float]:
+    def latest_progress_state_map(self, goal_ids: list[int], as_of: date) -> dict[int, dict[str, Optional[float]]]:
         if not goal_ids:
             return {}
 
@@ -204,7 +217,11 @@ class Repository:
         )
 
         stmt = (
-            select(GoalProgressUpdate.goal_id, GoalProgressUpdate.progress_percent)
+            select(
+                GoalProgressUpdate.goal_id,
+                GoalProgressUpdate.progress_percent,
+                GoalProgressUpdate.remaining_di,
+            )
             .join(
                 latest_dates_subq,
                 and_(
@@ -214,7 +231,14 @@ class Repository:
             )
         )
 
-        return {goal_id: progress for goal_id, progress in self.session.execute(stmt).all()}
+        return {
+            goal_id: {"progress_percent": float(progress), "remaining_di": remaining_di}
+            for goal_id, progress, remaining_di in self.session.execute(stmt).all()
+        }
+
+    def latest_progress_map(self, goal_ids: list[int], as_of: date) -> dict[int, float]:
+        state_map = self.latest_progress_state_map(goal_ids, as_of)
+        return {goal_id: float(value["progress_percent"] or 0.0) for goal_id, value in state_map.items()}
 
     def upsert_progress(
         self,
@@ -223,6 +247,7 @@ class Repository:
         progress_percent: float,
         note: Optional[str],
         updated_by: str,
+        remaining_di: Optional[float] = None,
     ) -> GoalProgressUpdate:
         stmt = select(GoalProgressUpdate).where(
             and_(GoalProgressUpdate.goal_id == goal_id, GoalProgressUpdate.date == update_date)
@@ -233,12 +258,14 @@ class Repository:
                 goal_id=goal_id,
                 date=update_date,
                 progress_percent=progress_percent,
+                remaining_di=remaining_di,
                 note=note,
                 updated_by=updated_by,
             )
             self.session.add(existing)
         else:
             existing.progress_percent = progress_percent
+            existing.remaining_di = remaining_di
             existing.note = note
             existing.updated_by = updated_by
             existing.created_at = datetime.utcnow()
@@ -327,6 +354,14 @@ class Repository:
             and_(GoalProgressUpdate.goal_id == goal_id, GoalProgressUpdate.date == update_date)
         )
         return self.session.scalar(stmt) is not None
+
+    def latest_progress_update(self, goal_id: int, as_of: date) -> Optional[GoalProgressUpdate]:
+        stmt = (
+            select(GoalProgressUpdate)
+            .where(and_(GoalProgressUpdate.goal_id == goal_id, GoalProgressUpdate.date <= as_of))
+            .order_by(GoalProgressUpdate.date.desc(), GoalProgressUpdate.created_at.desc(), GoalProgressUpdate.id.desc())
+        )
+        return self.session.scalars(stmt).first()
 
     def count_user_accounts(self) -> int:
         stmt = select(func.count()).select_from(UserAccount)

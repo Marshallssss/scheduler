@@ -31,9 +31,31 @@ def create_session_factory(settings: Settings) -> sessionmaker[Session]:
     return sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
 
+def _ensure_sqlite_columns(engine: Engine) -> None:
+    if engine.dialect.name != "sqlite":
+        return
+
+    with engine.begin() as conn:
+        goal_columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(goals)").fetchall()}
+        progress_columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(goal_progress_updates)").fetchall()}
+
+        if "goal_type" not in goal_columns:
+            conn.exec_driver_sql("ALTER TABLE goals ADD COLUMN goal_type TEXT NOT NULL DEFAULT 'requirement'")
+        if "requirement_priority" not in goal_columns:
+            conn.exec_driver_sql("ALTER TABLE goals ADD COLUMN requirement_priority INTEGER")
+        if "issue_module" not in goal_columns:
+            conn.exec_driver_sql("ALTER TABLE goals ADD COLUMN issue_module TEXT")
+        if "issue_total_di" not in goal_columns:
+            conn.exec_driver_sql("ALTER TABLE goals ADD COLUMN issue_total_di FLOAT")
+
+        if "remaining_di" not in progress_columns:
+            conn.exec_driver_sql("ALTER TABLE goal_progress_updates ADD COLUMN remaining_di FLOAT")
+
+
 def init_db(settings: Settings) -> None:
     engine = create_engine_from_settings(settings)
     Base.metadata.create_all(engine)
+    _ensure_sqlite_columns(engine)
 
 
 @contextmanager

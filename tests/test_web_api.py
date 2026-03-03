@@ -201,6 +201,79 @@ def test_web_api_progress_rollback_requires_note(settings):
     assert "回退" in rollback.json()["detail"]
 
 
+def test_web_api_issue_goal_progress_by_remaining_di(settings):
+    app = create_app(settings)
+    client = TestClient(app)
+    admin_headers = _bootstrap_admin(client)
+
+    project_resp = client.post(
+        "/api/projects",
+        headers=admin_headers,
+        json={
+            "name": "Issue API",
+            "deadline": _iso(30),
+            "participants": [{"name": "Owner", "email": "owner@example.com"}],
+        },
+    )
+    project = project_resp.json()
+
+    phase_resp = client.post(
+        "/api/phases",
+        headers=admin_headers,
+        json={
+            "project_id": project["id"],
+            "name": "Phase A",
+            "objective": "Fix issues",
+        },
+    )
+    phase = phase_resp.json()
+    owner_id = project["participants"][0]["id"]
+
+    goal_resp = client.post(
+        "/api/goals",
+        headers=admin_headers,
+        json={
+            "phase_id": phase["id"],
+            "title": "Issue Goal",
+            "owner_participant_id": owner_id,
+            "goal_type": "issue",
+            "issue_module": "支付",
+            "issue_total_di": 80,
+            "milestone_date": _iso(3),
+            "deadline": _iso(6),
+            "weight": 3,
+        },
+    )
+    assert goal_resp.status_code == 201
+    goal = goal_resp.json()
+    assert goal["goal_type"] == "issue"
+    assert goal["issue_total_di"] == 80
+
+    progress_resp = client.post(
+        "/api/progress",
+        headers=admin_headers,
+        json={
+            "goal_id": goal["id"],
+            "date": date.today().isoformat(),
+            "remaining_di": 20,
+            "updated_by": "web_tester",
+            "note": None,
+        },
+    )
+    assert progress_resp.status_code == 201
+    assert progress_resp.json()["progress_percent"] == 75.0
+    assert progress_resp.json()["remaining_di"] == 20
+
+    dashboard_resp = client.get(
+        f"/api/projects?as_of={date.today().isoformat()}",
+        headers=admin_headers,
+    )
+    dashboard_goal = dashboard_resp.json()["projects"][0]["phases"][0]["goals"][0]
+    assert dashboard_goal["goal_type"] == "issue"
+    assert dashboard_goal["remaining_di"] == 20
+    assert dashboard_goal["progress_percent"] == 75.0
+
+
 def test_owner_permissions(settings):
     app = create_app(settings)
     client = TestClient(app)

@@ -7,7 +7,7 @@ from typing import Optional
 import typer
 
 from scheduler.config import DEFAULT_CONFIG_PATH, config_template, load_settings
-from scheduler.constants import REPORT_DAILY, REPORT_MONTHLY, REPORT_WEEKLY
+from scheduler.constants import GOAL_TYPE_ISSUE, GOAL_TYPE_REQUIREMENT, REPORT_DAILY, REPORT_MONTHLY, REPORT_WEEKLY
 from scheduler.db import create_session_factory, init_db, session_scope
 from scheduler.logging_utils import configure_logging
 from scheduler.repositories import Repository
@@ -164,6 +164,10 @@ def goal_add(
     owner_id: Optional[int] = typer.Option(None, "--owner-id", help="负责人 participant ID"),
     milestone: Optional[str] = typer.Option(None, "--milestone", help="里程碑日期 YYYY-MM-DD"),
     deadline: Optional[str] = typer.Option(None, "--deadline", help="目标截止日期 YYYY-MM-DD"),
+    goal_type: Optional[str] = typer.Option(None, "--goal-type", help="目标类型 requirement|issue"),
+    requirement_priority: Optional[int] = typer.Option(None, "--requirement-priority", help="需求优先级 1-5"),
+    issue_module: Optional[str] = typer.Option(None, "--issue-module", help="问题单所属模块"),
+    issue_total_di: Optional[float] = typer.Option(None, "--issue-total-di", help="问题单总 DI"),
     weight: Optional[float] = typer.Option(None, "--weight", help="权重，默认 1.0"),
 ) -> None:
     """添加小目标。"""
@@ -189,6 +193,22 @@ def goal_add(
         use_title = title or typer.prompt("目标标题")
         milestone_date = _parse_date_or_exit(milestone or typer.prompt("里程碑日期 (YYYY-MM-DD)"), "里程碑日期")
         deadline_date = _parse_date_or_exit(deadline or typer.prompt("目标截止日期 (YYYY-MM-DD)"), "目标截止日期")
+        use_goal_type = (goal_type or typer.prompt("目标类型 requirement|issue", default=GOAL_TYPE_REQUIREMENT)).strip().lower()
+
+        use_requirement_priority = requirement_priority
+        use_issue_module = issue_module
+        use_issue_total_di = issue_total_di
+        if use_goal_type == GOAL_TYPE_REQUIREMENT:
+            if use_requirement_priority is None:
+                priority_raw = typer.prompt("需求优先级(1-5，可留空)", default="")
+                use_requirement_priority = int(priority_raw) if priority_raw.strip() else None
+            use_issue_module = None
+            use_issue_total_di = None
+        elif use_goal_type == GOAL_TYPE_ISSUE:
+            if use_issue_module is None:
+                use_issue_module = typer.prompt("问题单所属模块")
+            if use_issue_total_di is None:
+                use_issue_total_di = float(typer.prompt("问题单总 DI"))
 
         goal = project_service.add_goal(
             phase_id=phase_id,
@@ -197,8 +217,15 @@ def goal_add(
             milestone_date=milestone_date,
             deadline=deadline_date,
             weight=weight,
+            goal_type=use_goal_type,
+            requirement_priority=use_requirement_priority,
+            issue_module=use_issue_module,
+            issue_total_di=use_issue_total_di,
         )
-        typer.echo(f"目标添加成功: id={goal.id}, title={goal.title}, weight={goal.weight}")
+        typer.echo(
+            f"目标添加成功: id={goal.id}, title={goal.title}, type={goal.goal_type}, "
+            f"weight={goal.weight}"
+        )
 
 
 @progress_app.command("collect")
@@ -221,26 +248,52 @@ def progress_collect(
             typer.echo("该项目暂无目标")
             return
 
-        typer.echo(f"开始录入 {len(snapshots)} 个目标在 {update_date} 的完成率")
+        typer.echo(f"开始录入 {len(snapshots)} 个目标在 {update_date} 的进度")
         for snapshot in snapshots:
-            prompt = f"[{snapshot.goal.id}] {snapshot.goal.title} (当前 {snapshot.progress:.2f}%)"
-            raw_progress = typer.prompt(prompt, default=str(snapshot.progress))
-            try:
-                new_progress = float(raw_progress)
-            except ValueError as exc:
-                raise typer.BadParameter(f"完成率必须为数字: {raw_progress}") from exc
-
             note = None
-            if new_progress < snapshot.progress:
-                note = typer.prompt("检测到进度回退，请填写备注")
+            if snapshot.goal.goal_type == GOAL_TYPE_ISSUE:
+                default_remaining = snapshot.remaining_di
+                if default_remaining is None:
+                    default_remaining = snapshot.goal.issue_total_di if snapshot.goal.issue_total_di is not None else 0.0
+                prompt = (
+                    f"[{snapshot.goal.id}] {snapshot.goal.title} "
+                    f"(当前 {snapshot.progress:.2f}%, 剩余DI {default_remaining:.2f})"
+                )
+                raw_remaining = typer.prompt(prompt, default=str(default_remaining))
+                try:
+                    new_remaining = float(raw_remaining)
+                except ValueError as exc:
+                    raise typer.BadParameter(f"剩余DI必须为数字: {raw_remaining}") from exc
 
-            progress_service.record_progress(
-                goal_id=snapshot.goal.id,
-                update_date=update_date,
-                progress_percent=new_progress,
-                note=note,
-                updated_by=updated_by,
-            )
+                if new_remaining > default_remaining:
+                    note = typer.prompt("检测到剩余DI增加，请填写备注")
+
+                progress_service.record_progress(
+                    goal_id=snapshot.goal.id,
+                    update_date=update_date,
+                    progress_percent=None,
+                    remaining_di=new_remaining,
+                    note=note,
+                    updated_by=updated_by,
+                )
+            else:
+                prompt = f"[{snapshot.goal.id}] {snapshot.goal.title} (当前 {snapshot.progress:.2f}%)"
+                raw_progress = typer.prompt(prompt, default=str(snapshot.progress))
+                try:
+                    new_progress = float(raw_progress)
+                except ValueError as exc:
+                    raise typer.BadParameter(f"完成率必须为数字: {raw_progress}") from exc
+
+                if new_progress < snapshot.progress:
+                    note = typer.prompt("检测到进度回退，请填写备注")
+
+                progress_service.record_progress(
+                    goal_id=snapshot.goal.id,
+                    update_date=update_date,
+                    progress_percent=new_progress,
+                    note=note,
+                    updated_by=updated_by,
+                )
 
         summary = progress_service.build_project_progress(project_id=project_id, as_of=update_date)
         typer.echo(
