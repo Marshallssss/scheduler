@@ -172,13 +172,38 @@ crontab -l
 - Windows 不使用 `cron`，建议使用“任务计划程序”配置定时任务。
 - 首次部署后请编辑 `.scheduler.toml` 填写 SMTP 等配置。
 
-## 7. 测试
+## 7. 一键升级（迭代场景）
+
+频繁迭代时，推荐使用升级脚本，不需要手工执行 `git pull` + `pip install`。
+
+### Linux / macOS
+
+```bash
+scripts/upgrade.sh
+```
+
+脚本会自动执行：
+
+1. 检查工作区是否干净（有未提交改动会终止，避免覆盖）
+2. 拉取当前分支最新代码（`git pull --ff-only`）
+3. 安装/更新依赖（`pip install -e .`）
+4. 执行 `scheduler init` 触发数据库结构补齐（安全幂等）
+
+### Windows（双击）
+
+可直接双击：
+
+`scripts\upgrade_windows.bat`
+
+脚本会自动执行同样流程，并在完成后给出启动命令。
+
+## 8. 测试
 
 ```bash
 pytest -q
 ```
 
-## 8. 日志与产物
+## 9. 日志与产物
 
 - 日志：`~/.project_scheduler/logs/app.log`（保留 30 天）
 - 报表：`~/.project_scheduler/reports/*.md`
