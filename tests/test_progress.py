@@ -6,6 +6,7 @@ import pytest
 
 from scheduler.repositories import Repository
 from scheduler.services.progress_service import ProgressService
+from scheduler.services.project_service import ProjectService
 
 
 def test_weighted_progress_aggregation(session):
@@ -163,3 +164,64 @@ def test_issue_goal_remaining_di_increase_requires_note(session):
         svc.record_progress(goal.id, base, progress_percent=None, remaining_di=12, updated_by="pm")
 
     svc.record_progress(goal.id, base, progress_percent=None, remaining_di=12, updated_by="pm", note="新增问题单")
+
+
+def test_requirement_goal_tracks_progress_by_counts(session):
+    base = date(2026, 3, 2)
+    repo = Repository(session)
+
+    project = repo.create_project(
+        name="Req counts",
+        deadline=base + timedelta(days=20),
+        participants=[("A", "a@example.com")],
+    )
+    phase = repo.add_phase(project.id, name="P1", objective="Obj")
+    owner = repo.list_project_participants(project.id)[0]
+    goal = repo.add_goal(
+        phase_id=phase.id,
+        title="req-goal",
+        owner_participant_id=owner.id,
+        milestone_date=base + timedelta(days=1),
+        deadline=base + timedelta(days=5),
+        weight=2,
+    )
+
+    svc = ProgressService(repo)
+    update = svc.record_progress(
+        goal.id,
+        base,
+        progress_percent=None,
+        requirement_total_count=20,
+        requirement_done_count=5,
+        updated_by="pm",
+    )
+    assert update.progress_percent == 25.0
+    assert update.requirement_total_count == 20
+    assert update.requirement_done_count == 5
+
+
+def test_issue_goal_default_weight_is_not_di(session):
+    base = date(2026, 3, 2)
+    repo = Repository(session)
+    svc = ProjectService(repo)
+
+    project = repo.create_project(
+        name="Issue weight",
+        deadline=base + timedelta(days=20),
+        participants=[("A", "a@example.com")],
+    )
+    phase = repo.add_phase(project.id, name="P1", objective="Obj")
+    owner = repo.list_project_participants(project.id)[0]
+
+    goal = svc.add_goal(
+        phase_id=phase.id,
+        title="issue-weight",
+        owner_participant_id=owner.id,
+        milestone_date=base + timedelta(days=1),
+        deadline=base + timedelta(days=5),
+        weight=None,
+        goal_type="issue",
+        issue_module="订单",
+        issue_total_di=99,
+    )
+    assert goal.weight == 1.0

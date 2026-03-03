@@ -41,6 +41,8 @@ class ProgressService:
         updated_by: str,
         note: Optional[str] = None,
         remaining_di: Optional[float] = None,
+        requirement_total_count: Optional[int] = None,
+        requirement_done_count: Optional[int] = None,
     ):
         goal = self.repo.get_goal(goal_id)
         if goal is None:
@@ -68,17 +70,35 @@ class ProgressService:
                 raise ValueError("剩余 DI 增加时必须填写备注")
 
             computed_progress = round(max(0.0, min(100.0, (goal.issue_total_di - remaining_di) * 100 / goal.issue_total_di)), 2)
+            requirement_total_count = None
+            requirement_done_count = None
         else:
-            if progress_percent is None:
-                raise ValueError("需求型目标必须填写完成率")
-            if progress_percent < 0 or progress_percent > 100:
-                raise ValueError("完成率必须在 0-100")
+            if requirement_total_count is not None or requirement_done_count is not None:
+                if requirement_total_count is None or requirement_done_count is None:
+                    raise ValueError("需求型目标需同时填写总需求数和已完成需求数")
+                if requirement_total_count < 0:
+                    raise ValueError("总需求数不能小于 0")
+                if requirement_done_count < 0:
+                    raise ValueError("已完成需求数不能小于 0")
+                if requirement_done_count > requirement_total_count:
+                    raise ValueError("已完成需求数不能大于总需求数")
+                if requirement_total_count == 0:
+                    computed_progress = 0.0
+                else:
+                    computed_progress = round(requirement_done_count * 100 / requirement_total_count, 2)
+            else:
+                if progress_percent is None:
+                    raise ValueError("需求型目标必须填写总需求数/已完成需求数，或直接填写完成率")
+                if progress_percent < 0 or progress_percent > 100:
+                    raise ValueError("完成率必须在 0-100")
+                computed_progress = float(progress_percent)
+                requirement_total_count = None
+                requirement_done_count = None
 
             latest_progress = latest.progress_percent if latest is not None else 0.0
-            if progress_percent < latest_progress and clean_note is None:
+            if computed_progress < latest_progress and clean_note is None:
                 raise ValueError("进度回退时必须填写备注")
 
-            computed_progress = float(progress_percent)
             remaining_di = None
 
         update = self.repo.upsert_progress(
@@ -86,6 +106,8 @@ class ProgressService:
             update_date=update_date,
             progress_percent=computed_progress,
             remaining_di=remaining_di,
+            requirement_total_count=requirement_total_count,
+            requirement_done_count=requirement_done_count,
             note=clean_note,
             updated_by=updated_by,
         )

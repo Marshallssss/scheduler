@@ -48,6 +48,7 @@ class PhaseUpdateInput(BaseModel):
 class GoalCreateInput(BaseModel):
     phase_id: int
     title: str = Field(..., min_length=1)
+    note: Optional[str] = None
     owner_participant_id: int
     milestone_date: date
     deadline: date
@@ -60,6 +61,7 @@ class GoalCreateInput(BaseModel):
 
 class GoalUpdateInput(BaseModel):
     title: Optional[str] = None
+    note: Optional[str] = None
     owner_participant_id: Optional[int] = None
     milestone_date: Optional[date] = None
     deadline: Optional[date] = None
@@ -75,6 +77,8 @@ class ProgressUpdateInput(BaseModel):
     date: date
     progress_percent: Optional[float] = None
     remaining_di: Optional[float] = None
+    requirement_total_count: Optional[int] = None
+    requirement_done_count: Optional[int] = None
     updated_by: str = Field("web_ui", min_length=1)
     note: Optional[str] = None
 
@@ -175,6 +179,7 @@ def _goal_to_payload(item: GoalSnapshot, user: UserAccount) -> dict:
     return {
         "id": item.goal.id,
         "title": item.goal.title,
+        "note": item.goal.note,
         "owner_participant_id": item.owner.id,
         "owner_name": item.owner.name,
         "owner_email": item.owner.email,
@@ -188,6 +193,8 @@ def _goal_to_payload(item: GoalSnapshot, user: UserAccount) -> dict:
         "status": item.goal.status,
         "progress_percent": item.progress,
         "remaining_di": item.remaining_di,
+        "requirement_total_count": item.requirement_total_count,
+        "requirement_done_count": item.requirement_done_count,
         "editable": _goal_is_editable(item, user),
     }
 
@@ -573,6 +580,7 @@ def create_app(settings: Settings) -> FastAPI:
                 goal = project_service.add_goal(
                     phase_id=payload.phase_id,
                     title=payload.title,
+                    note=payload.note,
                     owner_participant_id=payload.owner_participant_id,
                     milestone_date=payload.milestone_date,
                     deadline=payload.deadline,
@@ -590,6 +598,7 @@ def create_app(settings: Settings) -> FastAPI:
                 "id": goal.id,
                 "phase_id": goal.phase_id,
                 "title": goal.title,
+                "note": goal.note,
                 "owner_participant_id": goal.owner_participant_id,
                 "owner_name": owner.name if owner else "",
                 "owner_email": owner.email if owner else "",
@@ -603,6 +612,8 @@ def create_app(settings: Settings) -> FastAPI:
                 "status": goal.status,
                 "progress_percent": 0.0,
                 "remaining_di": goal.issue_total_di if goal.goal_type == GOAL_TYPE_ISSUE else None,
+                "requirement_total_count": None,
+                "requirement_done_count": None,
             }
 
     @app.put("/api/goals/{goal_id}")
@@ -620,6 +631,7 @@ def create_app(settings: Settings) -> FastAPI:
                 goal = project_service.update_goal(
                     goal_id=goal_id,
                     title=payload.title,
+                    note=payload.note,
                     owner_participant_id=payload.owner_participant_id,
                     milestone_date=payload.milestone_date,
                     deadline=payload.deadline,
@@ -638,6 +650,7 @@ def create_app(settings: Settings) -> FastAPI:
                 "id": goal.id,
                 "phase_id": goal.phase_id,
                 "title": goal.title,
+                "note": goal.note,
                 "owner_participant_id": goal.owner_participant_id,
                 "owner_name": owner.name if owner else "",
                 "owner_email": owner.email if owner else "",
@@ -651,6 +664,8 @@ def create_app(settings: Settings) -> FastAPI:
                 "status": goal.status,
                 "progress_percent": latest.progress_percent if latest is not None else 0.0,
                 "remaining_di": latest.remaining_di if latest is not None else goal.issue_total_di,
+                "requirement_total_count": latest.requirement_total_count if latest is not None else None,
+                "requirement_done_count": latest.requirement_done_count if latest is not None else None,
             }
 
     @app.delete("/api/goals/{goal_id}", status_code=204, response_class=Response)
@@ -695,6 +710,8 @@ def create_app(settings: Settings) -> FastAPI:
                     update_date=payload.date,
                     progress_percent=payload.progress_percent,
                     remaining_di=payload.remaining_di,
+                    requirement_total_count=payload.requirement_total_count,
+                    requirement_done_count=payload.requirement_done_count,
                     updated_by=payload.updated_by,
                     note=payload.note,
                 )
@@ -711,6 +728,8 @@ def create_app(settings: Settings) -> FastAPI:
                 "date": update.date.isoformat(),
                 "progress_percent": update.progress_percent,
                 "remaining_di": update.remaining_di,
+                "requirement_total_count": update.requirement_total_count,
+                "requirement_done_count": update.requirement_done_count,
                 "note": update.note,
                 "updated_by": update.updated_by,
                 "project_id": phase.project_id,

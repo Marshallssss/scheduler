@@ -29,6 +29,8 @@ class GoalSnapshot:
     owner: Participant
     progress: float
     remaining_di: Optional[float]
+    requirement_total_count: Optional[int]
+    requirement_done_count: Optional[int]
 
 
 class Repository:
@@ -119,10 +121,12 @@ class Repository:
         requirement_priority: Optional[int] = None,
         issue_module: Optional[str] = None,
         issue_total_di: Optional[float] = None,
+        note: Optional[str] = None,
     ) -> Goal:
         goal = Goal(
             phase_id=phase_id,
             title=title,
+            note=note,
             owner_participant_id=owner_participant_id,
             milestone_date=milestone_date,
             deadline=deadline,
@@ -172,6 +176,8 @@ class Repository:
                     owner=owner_map[goal.owner_participant_id],
                     progress=progress_state["progress_percent"] if progress_state else 0.0,
                     remaining_di=progress_state["remaining_di"] if progress_state else None,
+                    requirement_total_count=progress_state["requirement_total_count"] if progress_state else None,
+                    requirement_done_count=progress_state["requirement_done_count"] if progress_state else None,
                 )
             )
         return snapshots
@@ -201,6 +207,8 @@ class Repository:
                     owner=owner,
                     progress=progress_state["progress_percent"] if progress_state else 0.0,
                     remaining_di=progress_state["remaining_di"] if progress_state else None,
+                    requirement_total_count=progress_state["requirement_total_count"] if progress_state else None,
+                    requirement_done_count=progress_state["requirement_done_count"] if progress_state else None,
                 )
             )
         return snapshots
@@ -221,6 +229,8 @@ class Repository:
                 GoalProgressUpdate.goal_id,
                 GoalProgressUpdate.progress_percent,
                 GoalProgressUpdate.remaining_di,
+                GoalProgressUpdate.requirement_total_count,
+                GoalProgressUpdate.requirement_done_count,
             )
             .join(
                 latest_dates_subq,
@@ -232,8 +242,13 @@ class Repository:
         )
 
         return {
-            goal_id: {"progress_percent": float(progress), "remaining_di": remaining_di}
-            for goal_id, progress, remaining_di in self.session.execute(stmt).all()
+            goal_id: {
+                "progress_percent": float(progress),
+                "remaining_di": remaining_di,
+                "requirement_total_count": requirement_total_count,
+                "requirement_done_count": requirement_done_count,
+            }
+            for goal_id, progress, remaining_di, requirement_total_count, requirement_done_count in self.session.execute(stmt).all()
         }
 
     def latest_progress_map(self, goal_ids: list[int], as_of: date) -> dict[int, float]:
@@ -248,6 +263,8 @@ class Repository:
         note: Optional[str],
         updated_by: str,
         remaining_di: Optional[float] = None,
+        requirement_total_count: Optional[int] = None,
+        requirement_done_count: Optional[int] = None,
     ) -> GoalProgressUpdate:
         stmt = select(GoalProgressUpdate).where(
             and_(GoalProgressUpdate.goal_id == goal_id, GoalProgressUpdate.date == update_date)
@@ -259,6 +276,8 @@ class Repository:
                 date=update_date,
                 progress_percent=progress_percent,
                 remaining_di=remaining_di,
+                requirement_total_count=requirement_total_count,
+                requirement_done_count=requirement_done_count,
                 note=note,
                 updated_by=updated_by,
             )
@@ -266,6 +285,8 @@ class Repository:
         else:
             existing.progress_percent = progress_percent
             existing.remaining_di = remaining_di
+            existing.requirement_total_count = requirement_total_count
+            existing.requirement_done_count = requirement_done_count
             existing.note = note
             existing.updated_by = updated_by
             existing.created_at = datetime.utcnow()

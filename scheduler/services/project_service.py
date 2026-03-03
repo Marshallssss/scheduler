@@ -59,10 +59,12 @@ class ProjectService:
         requirement_priority: Optional[int] = None,
         issue_module: Optional[str] = None,
         issue_total_di: Optional[float] = None,
+        note: Optional[str] = None,
     ):
         return self._create_or_update_goal(
             phase_id=phase_id,
             title=title,
+            note=note,
             owner_participant_id=owner_participant_id,
             milestone_date=milestone_date,
             deadline=deadline,
@@ -112,6 +114,7 @@ class ProjectService:
         self,
         goal_id: int,
         title: Optional[str] = None,
+        note: Optional[str] = None,
         owner_participant_id: Optional[int] = None,
         milestone_date: Optional[date] = None,
         deadline: Optional[date] = None,
@@ -126,6 +129,7 @@ class ProjectService:
             raise ValueError(f"目标不存在: {goal_id}")
 
         use_title = goal.title if title is None else title
+        use_note = goal.note if note is None else note
         use_owner_id = goal.owner_participant_id if owner_participant_id is None else owner_participant_id
         use_milestone = goal.milestone_date if milestone_date is None else milestone_date
         use_deadline = goal.deadline if deadline is None else deadline
@@ -144,6 +148,7 @@ class ProjectService:
         updated_goal = self._create_or_update_goal(
             phase_id=goal.phase_id,
             title=use_title,
+            note=use_note,
             owner_participant_id=use_owner_id,
             milestone_date=use_milestone,
             deadline=use_deadline,
@@ -167,6 +172,7 @@ class ProjectService:
         self,
         phase_id: int,
         title: str,
+        note: Optional[str],
         owner_participant_id: int,
         milestone_date: date,
         deadline: date,
@@ -216,7 +222,7 @@ class ProjectService:
                 raise ValueError("问题单型目标必须提供大于 0 的总 DI")
             if not normalized_issue_module:
                 raise ValueError("问题单型目标必须填写模块")
-            use_weight = issue_total_di if weight is None else weight
+            use_weight = 1.0 if weight is None else weight
             use_issue_module = normalized_issue_module
             use_issue_total_di = issue_total_di
             requirement_priority = None
@@ -224,10 +230,13 @@ class ProjectService:
         if use_weight <= 0:
             raise ValueError("权重必须大于 0")
 
+        clean_note = note.strip() if note else None
+
         if goal_id is None:
             return self.repo.add_goal(
                 phase_id=phase_id,
                 title=title.strip(),
+                note=clean_note,
                 owner_participant_id=owner_participant_id,
                 milestone_date=milestone_date,
                 deadline=deadline,
@@ -242,6 +251,7 @@ class ProjectService:
         if goal is None:
             raise ValueError(f"目标不存在: {goal_id}")
         goal.title = title.strip()
+        goal.note = clean_note
         goal.owner_participant_id = owner_participant_id
         goal.milestone_date = milestone_date
         goal.deadline = deadline

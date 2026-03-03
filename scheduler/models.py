@@ -78,6 +78,7 @@ class Goal(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     phase_id: Mapped[int] = mapped_column(ForeignKey("phases.id", ondelete="CASCADE"), nullable=False)
     title: Mapped[str] = mapped_column(String(250), nullable=False)
+    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     owner_participant_id: Mapped[int] = mapped_column(ForeignKey("participants.id", ondelete="RESTRICT"), nullable=False)
     weight: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     milestone_date: Mapped[date] = mapped_column(Date, nullable=False)
@@ -101,6 +102,19 @@ class GoalProgressUpdate(Base):
         UniqueConstraint("goal_id", "date", name="uq_goal_progress_goal_date"),
         CheckConstraint("progress_percent >= 0 and progress_percent <= 100", name="ck_progress_range"),
         CheckConstraint("remaining_di is null or remaining_di >= 0", name="ck_progress_remaining_di_non_negative"),
+        CheckConstraint(
+            "requirement_total_count is null or requirement_total_count >= 0",
+            name="ck_progress_requirement_total_non_negative",
+        ),
+        CheckConstraint(
+            "requirement_done_count is null or requirement_done_count >= 0",
+            name="ck_progress_requirement_done_non_negative",
+        ),
+        CheckConstraint(
+            "requirement_total_count is null or requirement_done_count is null or "
+            "requirement_done_count <= requirement_total_count",
+            name="ck_progress_requirement_done_le_total",
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -108,6 +122,8 @@ class GoalProgressUpdate(Base):
     date: Mapped[date] = mapped_column(Date, nullable=False)
     progress_percent: Mapped[float] = mapped_column(Float, nullable=False)
     remaining_di: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    requirement_total_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    requirement_done_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     updated_by: Mapped[str] = mapped_column(String(120), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)

@@ -47,9 +47,15 @@ def _ensure_sqlite_columns(engine: Engine) -> None:
             conn.exec_driver_sql("ALTER TABLE goals ADD COLUMN issue_module TEXT")
         if "issue_total_di" not in goal_columns:
             conn.exec_driver_sql("ALTER TABLE goals ADD COLUMN issue_total_di FLOAT")
+        if "note" not in goal_columns:
+            conn.exec_driver_sql("ALTER TABLE goals ADD COLUMN note TEXT")
 
         if "remaining_di" not in progress_columns:
             conn.exec_driver_sql("ALTER TABLE goal_progress_updates ADD COLUMN remaining_di FLOAT")
+        if "requirement_total_count" not in progress_columns:
+            conn.exec_driver_sql("ALTER TABLE goal_progress_updates ADD COLUMN requirement_total_count INTEGER")
+        if "requirement_done_count" not in progress_columns:
+            conn.exec_driver_sql("ALTER TABLE goal_progress_updates ADD COLUMN requirement_done_count INTEGER")
 
 
 def init_db(settings: Settings) -> None:

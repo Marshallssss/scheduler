@@ -106,12 +106,16 @@ def test_web_api_project_goal_progress_flow(settings):
         json={
             "goal_id": goal["id"],
             "date": date.today().isoformat(),
-            "progress_percent": 35,
+            "requirement_total_count": 20,
+            "requirement_done_count": 7,
             "updated_by": "web_tester",
             "note": None,
         },
     )
     assert progress_resp.status_code == 201
+    assert progress_resp.json()["progress_percent"] == 35.0
+    assert progress_resp.json()["requirement_total_count"] == 20
+    assert progress_resp.json()["requirement_done_count"] == 7
 
     dashboard_resp = client.get(
         f"/api/projects?as_of={date.today().isoformat()}",
@@ -129,6 +133,8 @@ def test_web_api_project_goal_progress_flow(settings):
     dashboard_goal = dashboard_project["phases"][0]["goals"][0]
     assert dashboard_goal["title"] == "Goal 1"
     assert dashboard_goal["progress_percent"] == 35.0
+    assert dashboard_goal["requirement_total_count"] == 20
+    assert dashboard_goal["requirement_done_count"] == 7
 
 
 def test_web_api_progress_rollback_requires_note(settings):
@@ -235,19 +241,21 @@ def test_web_api_issue_goal_progress_by_remaining_di(settings):
         json={
             "phase_id": phase["id"],
             "title": "Issue Goal",
+            "note": "用于支付模块缺陷修复",
             "owner_participant_id": owner_id,
             "goal_type": "issue",
             "issue_module": "支付",
             "issue_total_di": 80,
             "milestone_date": _iso(3),
             "deadline": _iso(6),
-            "weight": 3,
         },
     )
     assert goal_resp.status_code == 201
     goal = goal_resp.json()
     assert goal["goal_type"] == "issue"
     assert goal["issue_total_di"] == 80
+    assert goal["weight"] == 1.0
+    assert goal["note"] == "用于支付模块缺陷修复"
 
     progress_resp = client.post(
         "/api/progress",
@@ -272,6 +280,7 @@ def test_web_api_issue_goal_progress_by_remaining_di(settings):
     assert dashboard_goal["goal_type"] == "issue"
     assert dashboard_goal["remaining_di"] == 20
     assert dashboard_goal["progress_percent"] == 75.0
+    assert dashboard_goal["note"] == "用于支付模块缺陷修复"
 
 
 def test_owner_permissions(settings):

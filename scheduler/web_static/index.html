@@ -270,6 +270,9 @@
       .chip.good { color: #146a32; background: #e6f7eb; }
       .chip.warn { color: #9a5800; background: #fff2df; }
       .chip.bad { color: #a81616; background: #ffe6e6; }
+      .chip.risk-green { color: #146a32; background: #e6f7eb; }
+      .chip.risk-yellow { color: #9a5800; background: #fff2df; }
+      .chip.risk-red { color: #a81616; background: #ffe6e6; }
 
       .phase-grid { display: grid; gap: 10px; margin-top: 10px; }
       .phase-card {
@@ -503,16 +506,26 @@
                   <label for="progressDate">日期</label>
                   <input id="progressDate" type="date" required />
                 </div>
-                <div class="field" id="progressPercentField">
-                  <label for="progressValue">完成率 0-100</label>
-                  <input id="progressValue" type="number" min="0" max="100" step="0.01" required />
+                <div id="progressRequirementFields" class="two-col" style="grid-column: span 2;">
+                  <div class="field">
+                    <label for="progressRequirementTotal">需求总数</label>
+                    <input id="progressRequirementTotal" type="number" min="0" step="1" />
+                  </div>
+                  <div class="field">
+                    <label for="progressRequirementDone">已完成需求数</label>
+                    <input id="progressRequirementDone" type="number" min="0" step="1" />
+                  </div>
+                </div>
+                <div class="field hidden" id="progressPercentField">
+                  <label for="progressValue">完成率 0-100（兼容模式）</label>
+                  <input id="progressValue" type="number" min="0" max="100" step="0.01" />
                 </div>
                 <div class="field hidden" id="progressRemainingDiField">
                   <label for="progressRemainingDi">剩余 DI</label>
                   <input id="progressRemainingDi" type="number" min="0" step="0.01" />
                 </div>
               </div>
-              <p class="hint" id="progressInputHint">需求型目标录入完成率。</p>
+              <p class="hint" id="progressInputHint">需求型目标按“总数+已完成”自动计算进度。</p>
               <div class="field">
                 <label for="progressUpdatedBy">更新人</label>
                 <input id="progressUpdatedBy" value="web_user" required />
@@ -632,7 +645,11 @@
                   <label for="goalWeight">权重</label>
                   <input id="goalWeight" type="number" min="0.01" step="0.01" value="1" required />
                 </div>
-                <p class="hint">需求型默认按优先级映射权重（P1=5...P5=1）；问题单型可按总 DI 作为权重。</p>
+                <div class="field">
+                  <label for="goalNote">目标备注</label>
+                  <textarea id="goalNote" placeholder="补充目标背景、范围说明、依赖等，悬停可查看"></textarea>
+                </div>
+                <p class="hint">权重仅用于项目完成率聚合，不等于 DI。需求型默认按优先级映射（P1=5...P5=1）；问题单型默认权重为 1，建议按业务影响手工调整。</p>
                 <button class="btn-primary" type="submit">添加目标</button>
               </form>
             </section>
@@ -717,6 +734,10 @@
                 <div class="field">
                   <label for="goalEditWeight">权重</label>
                   <input id="goalEditWeight" type="number" min="0.01" step="0.01" required />
+                </div>
+                <div class="field">
+                  <label for="goalEditNote">目标备注</label>
+                  <textarea id="goalEditNote" placeholder="补充目标背景、范围说明、依赖等，悬停可查看"></textarea>
                 </div>
                 <div class="tab-buttons">
                   <button class="btn-primary" type="submit">保存目标</button>
@@ -846,6 +867,7 @@
         goalMilestoneDate: document.getElementById("goalMilestoneDate"),
         goalDeadline: document.getElementById("goalDeadline"),
         goalWeight: document.getElementById("goalWeight"),
+        goalNote: document.getElementById("goalNote"),
         goalEditId: document.getElementById("goalEditId"),
         goalEditOwnerId: document.getElementById("goalEditOwnerId"),
         goalEditType: document.getElementById("goalEditType"),
@@ -858,11 +880,15 @@
         goalEditMilestoneDate: document.getElementById("goalEditMilestoneDate"),
         goalEditDeadline: document.getElementById("goalEditDeadline"),
         goalEditWeight: document.getElementById("goalEditWeight"),
+        goalEditNote: document.getElementById("goalEditNote"),
         goalDeleteBtn: document.getElementById("goalDeleteBtn"),
 
         progressProjectId: document.getElementById("progressProjectId"),
         progressGoalId: document.getElementById("progressGoalId"),
         progressDate: document.getElementById("progressDate"),
+        progressRequirementFields: document.getElementById("progressRequirementFields"),
+        progressRequirementTotal: document.getElementById("progressRequirementTotal"),
+        progressRequirementDone: document.getElementById("progressRequirementDone"),
         progressPercentField: document.getElementById("progressPercentField"),
         progressRemainingDiField: document.getElementById("progressRemainingDiField"),
         progressInputHint: document.getElementById("progressInputHint"),
@@ -1017,11 +1043,47 @@
         return "需求 / 未分级";
       }
 
+      function goalRiskClass(goal) {
+        const progress = Number(goal.progress_percent || 0);
+        const today = new Date(`${todayISO()}T00:00:00`);
+        const deadline = new Date(`${goal.deadline}T00:00:00`);
+        const daysLeft = Math.floor((deadline - today) / 86400000);
+        if (daysLeft <= 1 && progress < 90) return "risk-red";
+        if (daysLeft <= 3 && progress < 80) return "risk-yellow";
+        return "risk-green";
+      }
+
+      function goalRiskLabel(goal) {
+        const riskClass = goalRiskClass(goal);
+        if (riskClass === "risk-red") return "截止前1天<90%，红色预警";
+        if (riskClass === "risk-yellow") return "截止前3天<80%，黄色预警";
+        return "进度正常";
+      }
+
       function chipClass(value) {
         const n = Number(value);
         if (n >= 80) return "good";
         if (n >= 40) return "warn";
         return "bad";
+      }
+
+      function ganttColorsByRiskClass(riskClass) {
+        if (riskClass === "risk-red") {
+          return {
+            bar: "linear-gradient(90deg, #b91c1c, #ef4444)",
+            fill: "rgba(153, 27, 27, 0.92)",
+          };
+        }
+        if (riskClass === "risk-yellow") {
+          return {
+            bar: "linear-gradient(90deg, #b45309, #f59e0b)",
+            fill: "rgba(180, 83, 9, 0.9)",
+          };
+        }
+        return {
+          bar: "linear-gradient(90deg, #0f766e, #16a34a)",
+          fill: "rgba(21, 128, 61, 0.95)",
+        };
       }
 
       function toDateNumber(iso) {
@@ -1061,19 +1123,23 @@
             const left = (startDay / totalDays) * 100;
             const width = (duration / totalDays) * 100;
             const fill = Math.max(0, Math.min(100, Number(goal.progress_percent || 0)));
+            const riskClass = goalRiskClass(goal);
+            const riskLabel = goalRiskLabel(goal);
+            const riskColors = ganttColorsByRiskClass(riskClass);
+            const noteText = goal.note ? ` | 备注：${goal.note}` : "";
             const progressText = goal.goal_type === "issue"
               ? `${fill.toFixed(2)}% | 剩余DI:${Number(goal.remaining_di ?? goal.issue_total_di ?? 0).toFixed(2)}`
-              : `${fill.toFixed(2)}%`;
+              : `${fill.toFixed(2)}% | 需求:${Number(goal.requirement_done_count ?? 0)}/${Number(goal.requirement_total_count ?? 0)}`;
 
             return `<div class="gantt-row">
-              <div class="gantt-label" title="${escapeHtml(goal.phaseName)} / ${escapeHtml(goal.title)}">${escapeHtml(goal.phaseName)} / ${escapeHtml(goal.title)}</div>
+              <div class="gantt-label" title="${escapeHtml(goal.phaseName)} / ${escapeHtml(goal.title)}${escapeHtml(noteText)}">${escapeHtml(goal.phaseName)} / ${escapeHtml(goal.title)}</div>
               <div>
                 <div class="gantt-track">
-                  <div class="gantt-bar" style="left:${left}%; width:${Math.max(1, width)}%;">
-                    <div class="gantt-fill" style="width:${fill}%;"></div>
+                  <div class="gantt-bar ${riskClass}" style="left:${left}%; width:${Math.max(1, width)}%; background:${riskColors.bar};">
+                    <div class="gantt-fill ${riskClass}" style="width:${fill}%; background:${riskColors.fill};"></div>
                   </div>
                 </div>
-                <div class="gantt-meta">${escapeHtml(goal.milestone_date)} ~ ${escapeHtml(goal.deadline)} | 负责人：${escapeHtml(goal.owner_name)} | 进度：${escapeHtml(progressText)}</div>
+                <div class="gantt-meta">${escapeHtml(goal.milestone_date)} ~ ${escapeHtml(goal.deadline)} | 负责人：${escapeHtml(goal.owner_name)} | 进度：${escapeHtml(progressText)} | ${escapeHtml(riskLabel)}</div>
               </div>
             </div>`;
           })
@@ -1115,14 +1181,19 @@
                 const goalsRows = phase.goals.length
                   ? phase.goals
                       .map((goal) => {
+                        const riskClass = goalRiskClass(goal);
+                        const riskLabel = goalRiskLabel(goal);
+                        const noteBadge = goal.note
+                          ? ` <span class="meta" title="${escapeHtml(goal.note)}">(备注)</span>`
+                          : "";
                         const progressText = goal.goal_type === "issue"
                           ? `${Number(goal.progress_percent).toFixed(2)}% / DI:${Number(goal.remaining_di ?? goal.issue_total_di ?? 0).toFixed(2)}`
-                          : `${Number(goal.progress_percent).toFixed(2)}%`;
+                          : `${Number(goal.progress_percent).toFixed(2)}% / 需求:${Number(goal.requirement_done_count ?? 0)}/${Number(goal.requirement_total_count ?? 0)}`;
                         return `<tr>
-                      <td>${escapeHtml(goal.title)}</td>
+                      <td>${escapeHtml(goal.title)}${noteBadge}</td>
                       <td>${escapeHtml(goalTypeLabel(goal))}</td>
                       <td>${escapeHtml(goal.owner_name)}</td>
-                      <td><span class="chip ${chipClass(goal.progress_percent)}">${escapeHtml(progressText)}</span></td>
+                      <td><span class="chip ${riskClass}" title="${escapeHtml(riskLabel)}">${escapeHtml(progressText)}</span></td>
                       <td>${Number(goal.weight).toFixed(2)}</td>
                       <td>${escapeHtml(goal.milestone_date)}</td>
                       <td>${escapeHtml(goal.deadline)}</td>
@@ -1200,7 +1271,9 @@
           if (!dom.goalIssueTotalDi.value) {
             dom.goalIssueTotalDi.value = "1";
           }
-          dom.goalWeight.value = dom.goalIssueTotalDi.value || "1";
+          if (!dom.goalWeight.value) {
+            dom.goalWeight.value = "1";
+          }
         } else {
           const priority = dom.goalRequirementPriority.value;
           dom.goalWeight.value = String(defaultWeightForPriority(priority));
@@ -1237,7 +1310,7 @@
         dom.goalEditRequirementPriorityField.classList.toggle("hidden", isIssue);
         if (isIssue) {
           if (!dom.goalEditWeight.value) {
-            dom.goalEditWeight.value = dom.goalEditIssueTotalDi.value || "1";
+            dom.goalEditWeight.value = "1";
           }
         } else {
           if (!dom.goalEditWeight.value) {
@@ -1274,6 +1347,7 @@
         syncGoalEditOwnersByGoal();
         if (!goal) {
           dom.goalEditTitle.value = "";
+          dom.goalEditNote.value = "";
           dom.goalEditType.value = "requirement";
           dom.goalEditRequirementPriority.value = "";
           dom.goalEditIssueModule.value = "";
@@ -1286,6 +1360,7 @@
         }
 
         dom.goalEditTitle.value = goal.title || "";
+        dom.goalEditNote.value = goal.note || "";
         dom.goalEditType.value = goal.goal_type || "requirement";
         dom.goalEditRequirementPriority.value = goal.requirement_priority ? String(goal.requirement_priority) : "";
         dom.goalEditIssueModule.value = goal.issue_module || "";
@@ -1300,7 +1375,8 @@
         const goal = state.goalMap.get(Number(dom.progressGoalId.value || 0));
         const isIssue = goal && goal.goal_type === "issue";
 
-        dom.progressPercentField.classList.toggle("hidden", !!isIssue);
+        dom.progressRequirementFields.classList.toggle("hidden", !!isIssue);
+        dom.progressPercentField.classList.add("hidden");
         dom.progressRemainingDiField.classList.toggle("hidden", !isIssue);
 
         if (isIssue) {
@@ -1310,7 +1386,13 @@
         } else {
           const currentProgress = Number(goal ? goal.progress_percent : 0);
           dom.progressValue.value = Number.isFinite(currentProgress) ? currentProgress.toFixed(2) : "0";
-          dom.progressInputHint.textContent = "需求型目标：录入完成率 0-100。";
+          dom.progressRequirementTotal.value = goal && goal.requirement_total_count != null
+            ? String(goal.requirement_total_count)
+            : "";
+          dom.progressRequirementDone.value = goal && goal.requirement_done_count != null
+            ? String(goal.requirement_done_count)
+            : "";
+          dom.progressInputHint.textContent = "需求型目标：录入需求总数与已完成需求数，自动计算进度。";
         }
       }
 
@@ -1323,7 +1405,7 @@
             .forEach((goal) => {
               const progressText = goal.goal_type === "issue"
                 ? `${Number(goal.progress_percent).toFixed(2)}% / DI:${Number(goal.remaining_di ?? goal.issue_total_di ?? 0).toFixed(2)}`
-                : `${Number(goal.progress_percent).toFixed(2)}%`;
+                : `${Number(goal.progress_percent).toFixed(2)}% / 需求:${Number(goal.requirement_done_count ?? 0)}/${Number(goal.requirement_total_count ?? 0)}`;
               options.push({
                 value: goal.id,
                 label: `${phase.name} / ${goal.title} (${progressText})`,
@@ -1638,6 +1720,7 @@
             body: JSON.stringify({
               phase_id: Number(dom.goalPhaseId.value),
               title: dom.goalTitle.value.trim(),
+              note: dom.goalNote.value.trim() || null,
               owner_participant_id: Number(dom.goalOwnerId.value),
               goal_type: goalType,
               requirement_priority: goalType === "requirement" && dom.goalRequirementPriority.value
@@ -1653,6 +1736,7 @@
           dom.goalForm.reset();
           dom.goalType.value = "requirement";
           dom.goalWeight.value = "1";
+          dom.goalNote.value = "";
           syncGoalTypeFields();
           await refreshAll(true);
           showStatus("目标添加成功", "ok");
@@ -1718,6 +1802,7 @@
             method: "PUT",
             body: JSON.stringify({
               title: dom.goalEditTitle.value.trim(),
+              note: dom.goalEditNote.value.trim() || null,
               owner_participant_id: Number(dom.goalEditOwnerId.value),
               goal_type: goalType,
               requirement_priority: goalType === "requirement" && dom.goalEditRequirementPriority.value
@@ -1760,6 +1845,8 @@
 
           let progressPercent = null;
           let remainingDi = null;
+          let requirementTotalCount = null;
+          let requirementDoneCount = null;
           if (goal && goal.goal_type === "issue") {
             remainingDi = Number(dom.progressRemainingDi.value);
             const latestRemaining = Number(goal.remaining_di ?? goal.issue_total_di ?? 0);
@@ -1770,11 +1857,26 @@
               throw new Error("剩余 DI 增加时必须填写备注");
             }
           } else {
-            progressPercent = Number(dom.progressValue.value);
-            if (Number.isNaN(progressPercent) || progressPercent < 0 || progressPercent > 100) {
-              throw new Error("完成率必须在 0-100");
+            const totalRaw = dom.progressRequirementTotal.value.trim();
+            const doneRaw = dom.progressRequirementDone.value.trim();
+            if (totalRaw === "" || doneRaw === "") {
+              throw new Error("需求型目标请填写总需求数和已完成需求数");
             }
-            if (goal && progressPercent < Number(goal.progress_percent || 0) && !note) {
+            requirementTotalCount = Number(totalRaw);
+            requirementDoneCount = Number(doneRaw);
+
+            if (Number.isNaN(requirementTotalCount) || requirementTotalCount < 0 || !Number.isInteger(requirementTotalCount)) {
+              throw new Error("需求总数必须为大于等于 0 的整数");
+            }
+            if (Number.isNaN(requirementDoneCount) || requirementDoneCount < 0 || !Number.isInteger(requirementDoneCount)) {
+              throw new Error("已完成需求数必须为大于等于 0 的整数");
+            }
+            if (requirementDoneCount > requirementTotalCount) {
+              throw new Error("已完成需求数不能大于总需求数");
+            }
+
+            const computedProgress = requirementTotalCount === 0 ? 0 : (requirementDoneCount * 100 / requirementTotalCount);
+            if (goal && computedProgress < Number(goal.progress_percent || 0) && !note) {
               throw new Error("回退进度必须填写备注");
             }
           }
@@ -1786,6 +1888,8 @@
               date: dom.progressDate.value,
               progress_percent: progressPercent,
               remaining_di: remainingDi,
+              requirement_total_count: requirementTotalCount,
+              requirement_done_count: requirementDoneCount,
               updated_by: dom.progressUpdatedBy.value.trim(),
               note: note || null,
             }),
@@ -1793,6 +1897,8 @@
 
           dom.progressNote.value = "";
           dom.progressRemainingDi.value = "";
+          dom.progressRequirementTotal.value = "";
+          dom.progressRequirementDone.value = "";
           await refreshAll(true);
           showStatus("进度更新成功", "ok");
         } catch (err) {
@@ -1814,13 +1920,17 @@
         dom.goalRequirementPriority.value = "";
         dom.goalIssueModule.value = "";
         dom.goalIssueTotalDi.value = "";
+        dom.goalNote.value = "";
         dom.goalEditType.value = "requirement";
         dom.goalEditRequirementPriority.value = "";
         dom.goalEditIssueModule.value = "";
         dom.goalEditIssueTotalDi.value = "";
+        dom.goalEditNote.value = "";
         dom.goalMilestoneDate.value = todayISO();
         dom.goalDeadline.value = todayISO();
         dom.progressDate.value = todayISO();
+        dom.progressRequirementTotal.value = "";
+        dom.progressRequirementDone.value = "";
         dom.progressUpdatedBy.value = "web_user";
         dom.newRole.value = "owner";
         toggleParticipantField();
@@ -1851,11 +1961,6 @@
         dom.goalPhaseId.addEventListener("change", syncGoalOwnersByPhase);
         dom.goalType.addEventListener("change", syncGoalTypeFields);
         dom.goalRequirementPriority.addEventListener("change", syncGoalTypeFields);
-        dom.goalIssueTotalDi.addEventListener("input", () => {
-          if (dom.goalType.value === "issue") {
-            dom.goalWeight.value = dom.goalIssueTotalDi.value || "1";
-          }
-        });
         dom.progressProjectId.addEventListener("change", syncProgressGoalsByProject);
         dom.progressGoalId.addEventListener("change", syncProgressInputMode);
         dom.newRole.addEventListener("change", toggleParticipantField);
@@ -1863,11 +1968,6 @@
         dom.goalEditId.addEventListener("change", syncGoalEditForm);
         dom.goalEditType.addEventListener("change", syncGoalEditTypeFields);
         dom.goalEditRequirementPriority.addEventListener("change", syncGoalEditTypeFields);
-        dom.goalEditIssueTotalDi.addEventListener("input", () => {
-          if (dom.goalEditType.value === "issue") {
-            dom.goalEditWeight.value = dom.goalEditIssueTotalDi.value || "1";
-          }
-        });
         dom.tabDashboardBtn.addEventListener("click", () => setMainTab("dashboard"));
         dom.tabAdminBtn.addEventListener("click", () => setMainTab("admin"));
         dom.opsProjectBtn.addEventListener("click", () => setOpsTab("project"));
