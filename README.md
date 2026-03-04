@@ -186,6 +186,7 @@ crontab -l
 - Windows 不使用 `cron`，建议使用“任务计划程序”配置定时任务。
 - 首次部署后请编辑 `.scheduler.toml` 填写 SMTP 等配置。
 - 若部署失败，请查看日志：`%USERPROFILE%\.project_scheduler\logs\windows_deploy.log`
+- 为减少耗时，脚本默认仅在新建 `.venv` 时升级 `pip/setuptools/wheel`；如需强制升级可先执行：`set SCHEDULER_FORCE_PIP_TOOLS_UPGRADE=1`
 
 ### Windows 后续日常启动（双击）
 
@@ -245,6 +246,7 @@ scripts\build_windows_wheels.bat
 ```
 
 升级时会保留本地状态文件/目录（如 `.venv`、`.scheduler.toml`、`.git`），并在 `_wheels` 存在时优先使用离线依赖包。
+为减少耗时，升级脚本默认会跳过 `pip/setuptools/wheel` 的重复升级；如需强制升级可先执行：`set SCHEDULER_FORCE_PIP_TOOLS_UPGRADE=1`。
 
 失败日志：
 

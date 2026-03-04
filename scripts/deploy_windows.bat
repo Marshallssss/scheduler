@@ -8,9 +8,10 @@ set "PYTHON_EXE=%VENV_DIR%\Scripts\python.exe"
 set "WHEEL_DIR=%PROJECT_DIR%\_wheels"
 set "LOG_DIR=%USERPROFILE%\.project_scheduler\logs"
 set "BOOT_LOG=%LOG_DIR%\windows_deploy.log"
-set "PIP_COMMON=--default-timeout 60 --retries 2"
+set "PIP_COMMON=--default-timeout 60 --retries 2 --disable-pip-version-check --no-input"
 set "PIP_INSTALL_FLAGS=--no-build-isolation"
 set "USE_LOCAL_WHEELS=0"
+set "VENV_CREATED=0"
 
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 
@@ -45,8 +46,15 @@ if not exist "%PYTHON_EXE%" (
   echo [INFO] Creating virtual environment...
   %PY_CMD% -m venv "%VENV_DIR%" >> "%BOOT_LOG%" 2>&1
   if errorlevel 1 goto :fail
+  set "VENV_CREATED=1"
 )
 
+if "%VENV_CREATED%"=="1" goto :upgrade_pip_tools
+if /I "%SCHEDULER_FORCE_PIP_TOOLS_UPGRADE%"=="1" goto :upgrade_pip_tools
+echo [INFO] Skipping pip/setuptools/wheel upgrade (set SCHEDULER_FORCE_PIP_TOOLS_UPGRADE=1 to force).
+goto :after_pip_tools
+
+:upgrade_pip_tools
 echo [INFO] Upgrading pip/setuptools/wheel...
 if "%USE_LOCAL_WHEELS%"=="1" (
   "%PYTHON_EXE%" -m pip install --upgrade pip setuptools wheel --no-index --find-links="%WHEEL_DIR%" %PIP_COMMON% >> "%BOOT_LOG%" 2>&1
@@ -60,6 +68,7 @@ if "%USE_LOCAL_WHEELS%"=="1" (
 if errorlevel 1 (
   echo [WARN] Packaging tools upgrade failed, continue with current versions.
 )
+:after_pip_tools
 
 echo [INFO] Installing scheduler package (editable)...
 if "%USE_LOCAL_WHEELS%"=="1" (
