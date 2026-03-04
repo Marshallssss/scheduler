@@ -5,6 +5,7 @@ cd /d %~dp0\..
 set "PROJECT_DIR=%cd%"
 set "VENV_DIR=%PROJECT_DIR%\.venv"
 set "PYTHON_EXE=%VENV_DIR%\Scripts\python.exe"
+set "PIP_COMMON=--default-timeout 60 --retries 2"
 
 echo [INFO] Scheduler upgrade start
 echo [INFO] Project Dir: %PROJECT_DIR%
@@ -52,11 +53,28 @@ if not exist "%PYTHON_EXE%" (
 )
 
 echo [INFO] Install latest package...
-"%PYTHON_EXE%" -m pip install -e . -i https://pypi.tuna.tsinghua.edu.cn/simple --default-timeout 30 --retries 1
+echo [INFO] Upgrading pip/setuptools/wheel...
+"%PYTHON_EXE%" -m pip install --upgrade pip setuptools wheel %PIP_COMMON%
 if errorlevel 1 (
-  echo [WARN] Mirror install failed, retrying with default index...
-  "%PYTHON_EXE%" -m pip install -e .
-  if errorlevel 1 goto :fail
+  echo [WARN] Packaging tools upgrade failed, continue with current versions.
+)
+
+echo [INFO] Install latest package (editable)...
+"%PYTHON_EXE%" -m pip install -e . -i https://pypi.tuna.tsinghua.edu.cn/simple %PIP_COMMON%
+if errorlevel 1 (
+  echo [WARN] Editable install via mirror failed, retrying default index...
+  "%PYTHON_EXE%" -m pip install -e . %PIP_COMMON%
+)
+if errorlevel 1 (
+  echo [WARN] Editable install failed, fallback to non-editable install...
+  "%PYTHON_EXE%" -m pip install . -i https://pypi.tuna.tsinghua.edu.cn/simple %PIP_COMMON%
+)
+if errorlevel 1 (
+  echo [WARN] Non-editable install via mirror failed, retrying default index...
+  "%PYTHON_EXE%" -m pip install . %PIP_COMMON%
+)
+if errorlevel 1 (
+  goto :fail
 )
 
 if exist "%PROJECT_DIR%\.scheduler.toml" (

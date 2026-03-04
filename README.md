@@ -179,6 +179,16 @@ crontab -l
 
 - Windows 不使用 `cron`，建议使用“任务计划程序”配置定时任务。
 - 首次部署后请编辑 `.scheduler.toml` 填写 SMTP 等配置。
+- 若部署失败，请查看日志：`%USERPROFILE%\.project_scheduler\logs\windows_deploy.log`
+
+### Windows 后续日常启动（双击）
+
+首次部署成功后，日常启动建议双击：
+
+`scripts\start_windows.bat`
+
+该脚本仅负责启动 Web，不会重复安装依赖。  
+若启动失败，请查看日志：`%USERPROFILE%\.project_scheduler\logs\windows_start.log`
 
 ## 7. 一键升级（迭代场景）
 
