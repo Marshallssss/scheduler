@@ -56,19 +56,19 @@ echo [INFO] Package input: %PACKAGE_INPUT% >> "%UPGRADE_LOG%"
 
 if exist "%PACKAGE_INPUT%\NUL" (
   set "SOURCE_DIR=%PACKAGE_INPUT%"
-  call :find_source "%SOURCE_DIR%"
+  call :find_source "!SOURCE_DIR!"
   if errorlevel 1 goto :fail
 ) else if exist "%PACKAGE_INPUT%" (
   set "ZIP_FILE=%PACKAGE_INPUT%"
   set "TEMP_EXTRACT_DIR=%TEMP%\scheduler_upgrade_%RANDOM%%RANDOM%"
-  mkdir "%TEMP_EXTRACT_DIR%" >nul 2>nul
+  mkdir "!TEMP_EXTRACT_DIR!" >nul 2>nul
   echo [INFO] Extracting package zip...
-  powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -LiteralPath '%ZIP_FILE%' -DestinationPath '%TEMP_EXTRACT_DIR%' -Force" >> "%UPGRADE_LOG%" 2>&1
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -LiteralPath '!ZIP_FILE!' -DestinationPath '!TEMP_EXTRACT_DIR!' -Force" >> "%UPGRADE_LOG%" 2>&1
   if errorlevel 1 (
     echo [ERROR] Failed to extract zip package.
     goto :fail
   )
-  call :find_source "%TEMP_EXTRACT_DIR%"
+  call :find_source "!TEMP_EXTRACT_DIR!"
   if errorlevel 1 goto :fail
 ) else (
   echo [ERROR] Path not found: %PACKAGE_INPUT%
@@ -94,7 +94,7 @@ if not exist "%PYTHON_EXE%" (
   echo [INFO] .venv not found, creating virtual environment...
   call :ensure_python_cmd
   if errorlevel 1 goto :fail
-  %PY_CMD% -m venv "%VENV_DIR%" >> "%UPGRADE_LOG%" 2>&1
+  !PY_CMD! -m venv "%VENV_DIR%" >> "%UPGRADE_LOG%" 2>&1
   if errorlevel 1 goto :fail
 )
 
