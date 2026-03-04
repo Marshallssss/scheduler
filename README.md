@@ -248,10 +248,13 @@ scripts\build_windows_wheels.bat
 ```
 
 升级时会保留本地状态文件/目录（如 `.venv`、`.scheduler.toml`、`.git`），并在 `_wheels` 存在时优先使用离线依赖包。
+请务必在“旧安装目录”里双击运行 `scripts\upgrade_windows.bat`；若当前目录同时缺少 `.scheduler.toml` 和 `.venv`，脚本会直接报错，避免升级到了错误目录。
+升级包必须是完整源码包（至少包含 `pyproject.toml`、`scheduler/`、`scripts/`）；若缺少 `scripts` 目录或 `scripts\upgrade_windows.bat`，脚本会直接报错终止，避免“显示成功但实际半升级”。
 为减少耗时，升级脚本默认会跳过 `pip/setuptools/wheel` 的重复升级；如需强制升级可先执行：`set SCHEDULER_FORCE_PIP_TOOLS_UPGRADE=1`。
 如需彻底禁用在线源并强制只使用 `_wheels`：先执行 `set SCHEDULER_OFFLINE_ONLY=1`，再运行脚本。
 
 脚本会在安装前自动检查并修复 `pip._vendor.distlib\t64.exe` 缺失（常见报错：`Unable to find resource t64.exe`），减少因虚拟环境内 pip 资源损坏导致的升级失败。
+另外，代码替换后会校验 `scripts/` 目录是否完整同步；若发现缺失文件会报错并提示查看升级日志。
 
 失败日志：
 

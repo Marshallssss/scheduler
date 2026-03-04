@@ -27,6 +27,15 @@ echo [INFO] Project Dir: %PROJECT_DIR%
 echo [INFO] Log file: %UPGRADE_LOG%
 echo [INFO] === upgrade start %date% %time% === > "%UPGRADE_LOG%"
 
+if not exist "%PROJECT_DIR%\.scheduler.toml" if not exist "%PROJECT_DIR%\.venv\NUL" (
+  echo [ERROR] Current directory is not an existing installation path.
+  echo [ERROR] Missing both .scheduler.toml and .venv under: %PROJECT_DIR%
+  echo [ERROR] Run upgrade_windows.bat in your old install folder.
+  echo [ERROR] Current directory is not an existing installation path. >> "%UPGRADE_LOG%"
+  echo [ERROR] Missing both .scheduler.toml and .venv under: %PROJECT_DIR% >> "%UPGRADE_LOG%"
+  goto :fail
+)
+
 if exist "%WHEEL_DIR%\NUL" (
   dir /b "%WHEEL_DIR%\*.whl" >nul 2>nul
   if not errorlevel 1 (
@@ -97,8 +106,14 @@ if exist "%PACKAGE_INPUT%\NUL" (
   goto :fail
 )
 
+echo [INFO] Source Dir: %SOURCE_DIR%
+echo [INFO] Source Dir: %SOURCE_DIR% >> "%UPGRADE_LOG%"
+
 if /I "%SOURCE_DIR%"=="%PROJECT_DIR%" (
-  echo [INFO] Source directory equals project directory, skip file replace.
+  echo [ERROR] Source directory equals project directory, no files to replace.
+  echo [ERROR] Source directory equals project directory, no files to replace. >> "%UPGRADE_LOG%"
+  echo [ERROR] Please provide a newer package zip/folder path.
+  goto :fail
 ) else (
   echo [INFO] Replacing project files from:
   echo        %SOURCE_DIR%
@@ -110,6 +125,8 @@ if /I "%SOURCE_DIR%"=="%PROJECT_DIR%" (
     echo [ERROR] File replacement failed with robocopy exit code !ROBOCODE!.
     goto :fail
   )
+  call :verify_scripts_sync
+  if errorlevel 1 goto :fail
 )
 
 if not exist "%PYTHON_EXE%" (
@@ -280,6 +297,46 @@ if not exist "%SOURCE_DIR%\scheduler\cli.py" (
   exit /b 1
 )
 
+if not exist "%SOURCE_DIR%\scripts\NUL" (
+  echo [ERROR] Invalid package: scripts directory not found.
+  exit /b 1
+)
+
+if not exist "%SOURCE_DIR%\scripts\upgrade_windows.bat" (
+  echo [ERROR] Invalid package: scripts\upgrade_windows.bat not found.
+  exit /b 1
+)
+
+exit /b 0
+
+:verify_scripts_sync
+if not exist "%SOURCE_DIR%\scripts\NUL" exit /b 0
+
+if not exist "%PROJECT_DIR%\scripts\NUL" (
+  echo [ERROR] scripts directory missing after file replacement.
+  echo [ERROR] scripts directory missing after file replacement. >> "%UPGRADE_LOG%"
+  exit /b 1
+)
+
+set "VERIFY_MISSING=0"
+for /f "delims=" %%f in ('dir /b /s /a:-d "%SOURCE_DIR%\scripts" 2^>nul') do (
+  set "SRC_FILE=%%f"
+  set "REL_PATH=!SRC_FILE:%SOURCE_DIR%\scripts\=!"
+  if not exist "%PROJECT_DIR%\scripts\!REL_PATH!" (
+    echo [ERROR] Missing upgraded script file: scripts\!REL_PATH!
+    echo [ERROR] Missing upgraded script file: scripts\!REL_PATH! >> "%UPGRADE_LOG%"
+    set "VERIFY_MISSING=1"
+  )
+)
+
+if "!VERIFY_MISSING!"=="1" (
+  echo [ERROR] scripts directory sync verification failed.
+  echo [ERROR] scripts directory sync verification failed. >> "%UPGRADE_LOG%"
+  exit /b 1
+)
+
+echo [INFO] scripts directory sync verified.
+echo [INFO] scripts directory sync verified. >> "%UPGRADE_LOG%"
 exit /b 0
 
 :ensure_python_cmd
