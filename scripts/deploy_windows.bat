@@ -190,7 +190,7 @@ echo [INFO] Checking scheduler cli...
 if errorlevel 1 goto :fail
 
 echo [INFO] Launching web server on http://127.0.0.1:8787 ...
-start "Scheduler Web" cmd /k "\"%PYTHON_EXE%\" -m scheduler.cli web --host=127.0.0.1 --port=8787"
+start "Scheduler Web" "%PYTHON_EXE%" -m scheduler.cli web --host=127.0.0.1 --port=8787
 
 echo [DONE] Deployment finished. Browser URL: http://127.0.0.1:8787
 pause
