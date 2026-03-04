@@ -173,6 +173,7 @@ crontab -l
 `scripts\build_windows_wheels.bat`
 
 该脚本会把依赖预下载到项目根目录 `_wheels`，`deploy/upgrade` 会优先使用本地依赖包安装。
+仓库也可直接提交 `_wheels` 目录用于离线部署；依赖版本更新时再重新执行该脚本刷新。
 
 脚本会自动完成：
 
