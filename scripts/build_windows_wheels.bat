@@ -5,7 +5,7 @@ cd /d %~dp0\..
 set "PROJECT_DIR=%cd%"
 set "WHEEL_DIR=%PROJECT_DIR%\_wheels"
 set "REQ_FILE=%PROJECT_DIR%\scripts\windows_runtime_requirements.txt"
-set "PIP_COMMON=--default-timeout 60 --retries 2"
+set "PIP_COMMON=--default-timeout 60 --retries 2 --disable-pip-version-check --no-input"
 
 echo [INFO] Project Dir: %PROJECT_DIR%
 echo [INFO] Wheel Dir: %WHEEL_DIR%
@@ -35,7 +35,7 @@ if not exist "%WHEEL_DIR%" mkdir "%WHEEL_DIR%"
 echo [INFO] Upgrading pip...
 %PY_CMD% -m pip install --upgrade pip %PIP_COMMON%
 if errorlevel 1 (
-  echo [WARN] pip upgrade failed, continue.
+  echo [WARN] pip upgrade failed or was cancelled, continue with current pip.
 )
 
 echo [INFO] Downloading build tools wheels...
