@@ -88,7 +88,8 @@ if not defined SOURCE_DIR if not defined ZIP_PATH (
     echo [ERROR] No package path provided.
     exit /b 1
   )
-  call :resolve_source_input "%SOURCE_INPUT%"
+  echo [INFO] Package input: !SOURCE_INPUT!
+  call :resolve_source_input "!SOURCE_INPUT!"
   if errorlevel 1 exit /b 1
 )
 
@@ -117,6 +118,7 @@ exit /b 0
 
 :resolve_source_input
 set "CANDIDATE=%~1"
+set "CANDIDATE=%CANDIDATE:"=%"
 if exist "%CANDIDATE%\NUL" (
   call :resolve_source_from_dir "%CANDIDATE%"
   exit /b %errorlevel%
