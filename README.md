@@ -251,6 +251,8 @@ scripts\build_windows_wheels.bat
 为减少耗时，升级脚本默认会跳过 `pip/setuptools/wheel` 的重复升级；如需强制升级可先执行：`set SCHEDULER_FORCE_PIP_TOOLS_UPGRADE=1`。
 如需彻底禁用在线源并强制只使用 `_wheels`：先执行 `set SCHEDULER_OFFLINE_ONLY=1`，再运行脚本。
 
+脚本会在安装前自动检查并修复 `pip._vendor.distlib\t64.exe` 缺失（常见报错：`Unable to find resource t64.exe`），减少因虚拟环境内 pip 资源损坏导致的升级失败。
+
 失败日志：
 
 - `%USERPROFILE%\.project_scheduler\logs\windows_upgrade.log`

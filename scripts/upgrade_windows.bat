@@ -121,6 +121,9 @@ if not exist "%PYTHON_EXE%" (
   set "VENV_CREATED=1"
 )
 
+call :repair_pip_if_missing_launcher
+if errorlevel 1 goto :fail
+
 if "%VENV_CREATED%"=="1" goto :upgrade_pip_tools
 if /I "%SCHEDULER_FORCE_PIP_TOOLS_UPGRADE%"=="1" goto :upgrade_pip_tools
 echo [INFO] Skipping pip/setuptools/wheel upgrade (set SCHEDULER_FORCE_PIP_TOOLS_UPGRADE=1 to force).
@@ -293,6 +296,28 @@ if errorlevel 1 (
 )
 
 set "PY_CMD=python"
+exit /b 0
+
+:repair_pip_if_missing_launcher
+"%PYTHON_EXE%" -c "import pathlib,pip; p=pathlib.Path(pip.__file__).resolve().parent/'_vendor'/'distlib'/'t64.exe'; raise SystemExit(0 if p.exists() else 1)" >nul 2>> "%UPGRADE_LOG%"
+if not errorlevel 1 exit /b 0
+
+echo [WARN] pip launcher resource missing (t64.exe), trying ensurepip repair...
+echo [WARN] pip launcher resource missing (t64.exe), trying ensurepip repair... >> "%UPGRADE_LOG%"
+"%PYTHON_EXE%" -m ensurepip --upgrade >> "%UPGRADE_LOG%" 2>&1
+if errorlevel 1 (
+  echo [ERROR] ensurepip repair failed.
+  exit /b 1
+)
+
+"%PYTHON_EXE%" -c "import pathlib,pip; p=pathlib.Path(pip.__file__).resolve().parent/'_vendor'/'distlib'/'t64.exe'; raise SystemExit(0 if p.exists() else 1)" >nul 2>> "%UPGRADE_LOG%"
+if errorlevel 1 (
+  echo [ERROR] pip repair failed: still missing pip._vendor.distlib\t64.exe.
+  exit /b 1
+)
+
+echo [INFO] pip launcher resource repaired.
+echo [INFO] pip launcher resource repaired. >> "%UPGRADE_LOG%"
 exit /b 0
 
 :fail
