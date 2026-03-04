@@ -5,16 +5,27 @@ cd /d %~dp0\..
 set "PROJECT_DIR=%cd%"
 set "VENV_DIR=%PROJECT_DIR%\.venv"
 set "PYTHON_EXE=%VENV_DIR%\Scripts\python.exe"
+set "WHEEL_DIR=%PROJECT_DIR%\_wheels"
 set "LOG_DIR=%USERPROFILE%\.project_scheduler\logs"
 set "BOOT_LOG=%LOG_DIR%\windows_deploy.log"
 set "PIP_COMMON=--default-timeout 60 --retries 2"
 set "PIP_INSTALL_FLAGS=--no-build-isolation"
+set "USE_LOCAL_WHEELS=0"
 
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 
 echo [INFO] Project Dir: %PROJECT_DIR%
 echo [INFO] Log file: %BOOT_LOG%
 echo [INFO] === deploy start %date% %time% === > "%BOOT_LOG%"
+
+if exist "%WHEEL_DIR%\NUL" (
+  dir /b "%WHEEL_DIR%\*.whl" >nul 2>nul
+  if not errorlevel 1 (
+    set "USE_LOCAL_WHEELS=1"
+    echo [INFO] Local wheelhouse detected: %WHEEL_DIR%
+    echo [INFO] Local wheelhouse detected: %WHEEL_DIR% >> "%BOOT_LOG%"
+  )
+)
 
 where py >nul 2>nul
 if %errorlevel%==0 (
@@ -37,23 +48,51 @@ if not exist "%PYTHON_EXE%" (
 )
 
 echo [INFO] Upgrading pip/setuptools/wheel...
-"%PYTHON_EXE%" -m pip install --upgrade pip setuptools wheel %PIP_COMMON% >> "%BOOT_LOG%" 2>&1
+if "%USE_LOCAL_WHEELS%"=="1" (
+  "%PYTHON_EXE%" -m pip install --upgrade pip setuptools wheel --no-index --find-links="%WHEEL_DIR%" %PIP_COMMON% >> "%BOOT_LOG%" 2>&1
+  if errorlevel 1 (
+    echo [WARN] Local wheelhouse install for packaging tools failed, fallback online...
+    "%PYTHON_EXE%" -m pip install --upgrade pip setuptools wheel %PIP_COMMON% >> "%BOOT_LOG%" 2>&1
+  )
+) else (
+  "%PYTHON_EXE%" -m pip install --upgrade pip setuptools wheel %PIP_COMMON% >> "%BOOT_LOG%" 2>&1
+)
 if errorlevel 1 (
   echo [WARN] Packaging tools upgrade failed, continue with current versions.
 )
 
 echo [INFO] Installing scheduler package (editable)...
-"%PYTHON_EXE%" -m pip install -e . %PIP_INSTALL_FLAGS% -i https://pypi.tuna.tsinghua.edu.cn/simple %PIP_COMMON% >> "%BOOT_LOG%" 2>&1
+if "%USE_LOCAL_WHEELS%"=="1" (
+  "%PYTHON_EXE%" -m pip install -e . %PIP_INSTALL_FLAGS% --no-index --find-links="%WHEEL_DIR%" %PIP_COMMON% >> "%BOOT_LOG%" 2>&1
+) else (
+  "%PYTHON_EXE%" -m pip install -e . %PIP_INSTALL_FLAGS% -i https://pypi.tuna.tsinghua.edu.cn/simple %PIP_COMMON% >> "%BOOT_LOG%" 2>&1
+)
 if errorlevel 1 (
-  echo [WARN] Editable install via mirror failed, retrying default index...
+  if "%USE_LOCAL_WHEELS%"=="1" (
+    echo [WARN] Offline editable install failed, retrying mirror...
+    "%PYTHON_EXE%" -m pip install -e . %PIP_INSTALL_FLAGS% -i https://pypi.tuna.tsinghua.edu.cn/simple %PIP_COMMON% >> "%BOOT_LOG%" 2>&1
+  )
+)
+if errorlevel 1 (
+  echo [WARN] Editable install failed, retrying default index...
   "%PYTHON_EXE%" -m pip install -e . %PIP_INSTALL_FLAGS% %PIP_COMMON% >> "%BOOT_LOG%" 2>&1
 )
 if errorlevel 1 (
   echo [WARN] Editable install failed, fallback to non-editable install...
-  "%PYTHON_EXE%" -m pip install . %PIP_INSTALL_FLAGS% -i https://pypi.tuna.tsinghua.edu.cn/simple %PIP_COMMON% >> "%BOOT_LOG%" 2>&1
+  if "%USE_LOCAL_WHEELS%"=="1" (
+    "%PYTHON_EXE%" -m pip install . %PIP_INSTALL_FLAGS% --no-index --find-links="%WHEEL_DIR%" %PIP_COMMON% >> "%BOOT_LOG%" 2>&1
+  ) else (
+    "%PYTHON_EXE%" -m pip install . %PIP_INSTALL_FLAGS% -i https://pypi.tuna.tsinghua.edu.cn/simple %PIP_COMMON% >> "%BOOT_LOG%" 2>&1
+  )
 )
 if errorlevel 1 (
-  echo [WARN] Non-editable install via mirror failed, retrying default index...
+  if "%USE_LOCAL_WHEELS%"=="1" (
+    echo [WARN] Offline non-editable install failed, retrying mirror...
+    "%PYTHON_EXE%" -m pip install . %PIP_INSTALL_FLAGS% -i https://pypi.tuna.tsinghua.edu.cn/simple %PIP_COMMON% >> "%BOOT_LOG%" 2>&1
+  )
+)
+if errorlevel 1 (
+  echo [WARN] Non-editable install failed, retrying default index...
   "%PYTHON_EXE%" -m pip install . %PIP_INSTALL_FLAGS% %PIP_COMMON% >> "%BOOT_LOG%" 2>&1
 )
 if errorlevel 1 (

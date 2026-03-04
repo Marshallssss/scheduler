@@ -168,6 +168,12 @@ crontab -l
 
 `scripts\deploy_windows.bat`
 
+若网络不稳定，建议先双击：
+
+`scripts\build_windows_wheels.bat`
+
+该脚本会把依赖预下载到项目根目录 `_wheels`，`deploy/upgrade` 会优先使用本地依赖包安装。
+
 脚本会自动完成：
 
 1. 创建 `.venv`
@@ -223,10 +229,11 @@ scripts/upgrade.sh
 推荐流程（最省事）：
 
 1. 保持当前项目目录不变（即你旧版本正在运行的目录）。
-2. 在项目根目录创建 `_upgrade` 文件夹（若不存在）。
-3. 下载最新源码压缩包（zip）到 `%PROJECT_DIR%\_upgrade\`。
-4. 双击 `scripts\upgrade_windows.bat`。
-5. 脚本会自动解压、替换代码、升级依赖并执行 `init`。
+2. （推荐）先双击 `scripts\build_windows_wheels.bat`，把依赖预下载到 `_wheels`。
+3. 在项目根目录创建 `_upgrade` 文件夹（若不存在）。
+4. 下载最新源码压缩包（zip）到 `%PROJECT_DIR%\_upgrade\`。
+5. 双击 `scripts\upgrade_windows.bat`。
+6. 脚本会自动解压、替换代码、升级依赖并执行 `init`。
 
 也可命令行显式指定升级包/目录：
 
@@ -234,9 +241,10 @@ scripts/upgrade.sh
 scripts\upgrade_windows.bat "D:\Downloads\scheduler-v0.2.0.zip"
 scripts\upgrade_windows.bat "D:\Downloads\scheduler-v0.2.0"
 scripts\upgrade_windows.bat --from-package "D:\Downloads\scheduler-v0.2.0.zip"
+scripts\build_windows_wheels.bat
 ```
 
-升级时会保留本地状态文件/目录（如 `.venv`、`.scheduler.toml`、`.git`）。
+升级时会保留本地状态文件/目录（如 `.venv`、`.scheduler.toml`、`.git`），并在 `_wheels` 存在时优先使用离线依赖包。
 
 失败日志：
 
