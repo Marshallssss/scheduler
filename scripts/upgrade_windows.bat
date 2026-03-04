@@ -8,6 +8,7 @@ set "PYTHON_EXE=%VENV_DIR%\Scripts\python.exe"
 set "LOG_DIR=%USERPROFILE%\.project_scheduler\logs"
 set "UPGRADE_LOG=%LOG_DIR%\windows_upgrade.log"
 set "PIP_COMMON=--default-timeout 60 --retries 2"
+set "PIP_INSTALL_FLAGS=--no-build-isolation"
 set "TEMP_EXTRACT_DIR="
 set "SOURCE_DIR="
 set "ZIP_FILE="
@@ -103,18 +104,18 @@ echo [INFO] Upgrading pip/setuptools/wheel...
 if errorlevel 1 echo [WARN] Packaging tools upgrade failed, continue with current versions.
 
 echo [INFO] Installing scheduler package (editable)...
-"%PYTHON_EXE%" -m pip install -e . -i https://pypi.tuna.tsinghua.edu.cn/simple %PIP_COMMON% >> "%UPGRADE_LOG%" 2>&1
+"%PYTHON_EXE%" -m pip install -e . %PIP_INSTALL_FLAGS% -i https://pypi.tuna.tsinghua.edu.cn/simple %PIP_COMMON% >> "%UPGRADE_LOG%" 2>&1
 if errorlevel 1 (
   echo [WARN] Editable install via mirror failed, retrying default index...
-  "%PYTHON_EXE%" -m pip install -e . %PIP_COMMON% >> "%UPGRADE_LOG%" 2>&1
+  "%PYTHON_EXE%" -m pip install -e . %PIP_INSTALL_FLAGS% %PIP_COMMON% >> "%UPGRADE_LOG%" 2>&1
 )
 if errorlevel 1 (
   echo [WARN] Editable install failed, fallback to non-editable install...
-  "%PYTHON_EXE%" -m pip install . -i https://pypi.tuna.tsinghua.edu.cn/simple %PIP_COMMON% >> "%UPGRADE_LOG%" 2>&1
+  "%PYTHON_EXE%" -m pip install . %PIP_INSTALL_FLAGS% -i https://pypi.tuna.tsinghua.edu.cn/simple %PIP_COMMON% >> "%UPGRADE_LOG%" 2>&1
 )
 if errorlevel 1 (
   echo [WARN] Non-editable install via mirror failed, retrying default index...
-  "%PYTHON_EXE%" -m pip install . %PIP_COMMON% >> "%UPGRADE_LOG%" 2>&1
+  "%PYTHON_EXE%" -m pip install . %PIP_INSTALL_FLAGS% %PIP_COMMON% >> "%UPGRADE_LOG%" 2>&1
 )
 if errorlevel 1 goto :fail
 
