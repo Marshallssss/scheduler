@@ -207,13 +207,37 @@ scripts/upgrade.sh
 3. 安装/更新依赖（`pip install -e .`）
 4. 执行 `scheduler init` 触发数据库结构补齐（安全幂等）
 
-### Windows（双击）
+### Windows（双击，支持 Git / 离线整包）
 
 可直接双击：
 
 `scripts\upgrade_windows.bat`
 
-脚本会自动执行同样流程，并在完成后给出启动命令。
+脚本支持两种升级模式：
+
+1. Git 升级（优先）
+   - 若当前目录存在 `.git` 且工作区干净，会自动执行 `git fetch` + `git pull --ff-only`。
+2. 离线整包升级（自动回退）
+   - 若无法使用 Git，会自动进入离线模式，支持 `zip` 包或已解压目录。
+   - 默认会优先自动检测：
+     - `%PROJECT_DIR%\_upgrade\*.zip`
+     - `%USERPROFILE%\Downloads\*scheduler*.zip`
+
+离线整包推荐流程：
+
+1. 保持当前项目目录不变（即你旧版本正在运行的目录）。
+2. 下载最新源码压缩包（zip）到 `%PROJECT_DIR%\_upgrade\`（或 `Downloads`）。
+3. 双击 `scripts\upgrade_windows.bat`，脚本会自动解压、替换代码并执行依赖升级与 `init`。
+
+也可命令行显式指定升级包：
+
+```bat
+scripts\upgrade_windows.bat "D:\Downloads\scheduler-v0.2.0.zip"
+scripts\upgrade_windows.bat "D:\Downloads\scheduler-v0.2.0"
+scripts\upgrade_windows.bat --from-package "D:\Downloads\scheduler-v0.2.0.zip"
+```
+
+升级时会保留本地状态文件/目录（如 `.venv`、`.scheduler.toml`、`.git`）。
 
 ## 8. 测试
 
