@@ -87,6 +87,34 @@ if errorlevel 1 (
 )
 :after_pip_tools
 
+echo [INFO] Verifying wheel package availability...
+"%PYTHON_EXE%" -m pip show wheel >nul 2>> "%BOOT_LOG%"
+if errorlevel 1 (
+  echo [WARN] wheel not found in virtual environment, installing wheel...
+  if "%USE_LOCAL_WHEELS%"=="1" (
+    "%PYTHON_EXE%" -m pip install wheel --no-index --find-links="%WHEEL_DIR%" %PIP_COMMON% >> "%BOOT_LOG%" 2>&1
+  ) else (
+    if "%OFFLINE_ONLY%"=="1" (
+      echo [ERROR] Offline mode requires local wheelhouse to install wheel.
+      goto :fail
+    )
+    "%PYTHON_EXE%" -m pip install wheel -i https://pypi.tuna.tsinghua.edu.cn/simple %PIP_COMMON% >> "%BOOT_LOG%" 2>&1
+  )
+  if errorlevel 1 (
+    if "%OFFLINE_ONLY%"=="1" (
+      echo [ERROR] Offline wheel installation failed. Refresh _wheels via scripts\build_windows_wheels.bat.
+      goto :fail
+    )
+    echo [WARN] wheel install via mirror failed, retrying default index...
+    if "%USE_LOCAL_WHEELS%"=="1" (
+      "%PYTHON_EXE%" -m pip install wheel --find-links="%WHEEL_DIR%" %PIP_COMMON% >> "%BOOT_LOG%" 2>&1
+    ) else (
+      "%PYTHON_EXE%" -m pip install wheel %PIP_COMMON% >> "%BOOT_LOG%" 2>&1
+    )
+  )
+)
+if errorlevel 1 echo [WARN] wheel installation check failed, installation may fail.
+
 echo [INFO] Installing scheduler package (editable)...
 if "%USE_LOCAL_WHEELS%"=="1" (
   "%PYTHON_EXE%" -m pip install -e . %PIP_INSTALL_FLAGS% --no-index --find-links="%WHEEL_DIR%" %PIP_COMMON% >> "%BOOT_LOG%" 2>&1
