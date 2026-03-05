@@ -6,18 +6,19 @@
     <title>项目排程与进度管理</title>
     <style>
       :root {
-        --bg: #f6f9f6;
-        --panel: #ffffff;
-        --panel-soft: #f6fbf8;
-        --text: #14281e;
-        --muted: #60766a;
-        --line: #d4e1d9;
-        --shadow: 0 14px 30px rgba(20, 40, 30, 0.08);
-        --brand: #0f766e;
-        --brand-deep: #115e59;
-        --good: #166534;
-        --warn: #b45309;
-        --bad: #b91c1c;
+        --bg: #e9f0fb;
+        --panel: rgba(255, 255, 255, 0.55);
+        --panel-soft: rgba(255, 255, 255, 0.42);
+        --text: #10243d;
+        --muted: #4c627f;
+        --line: rgba(255, 255, 255, 0.68);
+        --shadow: 0 20px 44px rgba(14, 35, 65, 0.15);
+        --glass-blur: blur(18px) saturate(160%);
+        --brand: #2c7ef6;
+        --brand-deep: #4b5eff;
+        --good: #0f8a52;
+        --warn: #b86b00;
+        --bad: #c73e3e;
       }
 
       * { box-sizing: border-box; }
@@ -25,27 +26,36 @@
       body {
         margin: 0;
         font-family: "Avenir Next", "Segoe UI", "Noto Sans SC", sans-serif;
-        background: radial-gradient(circle at 85% 0%, #d8f3e8 0%, transparent 34%),
-          radial-gradient(circle at 4% 25%, #ddebfa 0%, transparent 30%), var(--bg);
+        background:
+          radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0) 44%),
+          radial-gradient(circle at 84% 4%, rgba(123, 186, 255, 0.42) 0%, rgba(123, 186, 255, 0) 38%),
+          radial-gradient(circle at 88% 90%, rgba(146, 204, 255, 0.32) 0%, rgba(146, 204, 255, 0) 44%),
+          linear-gradient(135deg, #ebf4ff 0%, #dce8ff 48%, #eaf1ff 100%),
+          var(--bg);
         color: var(--text);
-        transition: background 0.2s ease, color 0.2s ease;
+        transition: background 0.35s ease, color 0.35s ease;
+        min-height: 100vh;
       }
 
       body.theme-dark {
-        --bg: #0f1115;
-        --panel: #181b20;
-        --panel-soft: #21252c;
-        --text: #e5e7eb;
-        --muted: #9ca3af;
-        --line: #323843;
-        --shadow: 0 16px 34px rgba(0, 0, 0, 0.35);
-        --brand: #0d9488;
-        --brand-deep: #0f766e;
-        --good: #22c55e;
-        --warn: #f59e0b;
-        --bad: #ef4444;
-        background: radial-gradient(circle at 88% 0%, #1f2937 0%, transparent 38%),
-          radial-gradient(circle at 10% 20%, #111827 0%, transparent 35%), var(--bg);
+        --bg: #0f1725;
+        --panel: rgba(19, 31, 51, 0.56);
+        --panel-soft: rgba(19, 31, 51, 0.4);
+        --text: #edf3ff;
+        --muted: #b2c2dd;
+        --line: rgba(162, 189, 228, 0.26);
+        --shadow: 0 24px 48px rgba(3, 7, 20, 0.58);
+        --brand: #5fa9ff;
+        --brand-deep: #6b8fff;
+        --good: #45d089;
+        --warn: #ffb24d;
+        --bad: #ff7f8e;
+        background:
+          radial-gradient(circle at 15% 12%, rgba(120, 166, 255, 0.24) 0%, rgba(120, 166, 255, 0) 42%),
+          radial-gradient(circle at 92% 8%, rgba(109, 214, 255, 0.22) 0%, rgba(109, 214, 255, 0) 37%),
+          radial-gradient(circle at 78% 88%, rgba(111, 140, 255, 0.21) 0%, rgba(111, 140, 255, 0) 40%),
+          linear-gradient(135deg, #0b1220 0%, #111d33 45%, #0d1a2d 100%),
+          var(--bg);
       }
 
       .container {
@@ -80,19 +90,21 @@
       }
 
       .badge {
-        border: 1px solid #cfe0d5;
-        background: #f2f8f4;
+        border: 1px solid var(--line);
+        background: var(--panel-soft);
+        backdrop-filter: var(--glass-blur);
         border-radius: 999px;
         font-size: 12px;
-        color: #355246;
+        color: var(--text);
         padding: 6px 12px;
       }
 
       .status {
         min-height: 36px;
-        border: 1px solid #d9e5de;
-        background: #f4f8f5;
-        color: #4f655a;
+        border: 1px solid var(--line);
+        background: var(--panel-soft);
+        backdrop-filter: var(--glass-blur);
+        color: var(--text);
         border-radius: 999px;
         padding: 0 13px;
         display: inline-flex;
@@ -100,56 +112,78 @@
         font-size: 13px;
       }
 
-      .status.ok { color: var(--good); border-color: #b6dfc4; background: #edf9f1; }
-      .status.warn { color: var(--warn); border-color: #efd6b2; background: #fff8ef; }
-      .status.error { color: var(--bad); border-color: #f0c3c3; background: #fff2f2; }
+      .status.ok { color: var(--good); border-color: rgba(104, 205, 150, 0.5); background: rgba(236, 255, 246, 0.62); }
+      .status.warn { color: var(--warn); border-color: rgba(255, 195, 121, 0.5); background: rgba(255, 245, 229, 0.66); }
+      .status.error { color: var(--bad); border-color: rgba(255, 146, 146, 0.5); background: rgba(255, 237, 239, 0.66); }
 
       button {
-        border: 0;
-        border-radius: 10px;
+        border: 1px solid transparent;
+        border-radius: 12px;
         cursor: pointer;
         font-size: 13px;
         font-weight: 600;
-        padding: 9px 12px;
+        padding: 9px 13px;
+        backdrop-filter: var(--glass-blur);
+        transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
       }
 
-      .btn-primary { color: #fff; background: linear-gradient(135deg, var(--brand), var(--brand-deep)); }
-      .btn-secondary { color: #1c4d40; background: #d9eee6; }
-      .btn-danger { color: #fff; background: #b91c1c; }
+      button:hover {
+        transform: translateY(-1px);
+      }
+
+      .btn-primary {
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.35);
+        background: linear-gradient(140deg, rgba(57, 136, 255, 0.9), rgba(78, 107, 255, 0.86));
+        box-shadow: 0 10px 22px rgba(50, 107, 235, 0.3);
+      }
+
+      .btn-secondary {
+        color: var(--text);
+        border-color: var(--line);
+        background: var(--panel-soft);
+      }
+
+      .btn-danger {
+        color: #fff;
+        border-color: rgba(255, 199, 199, 0.3);
+        background: linear-gradient(140deg, rgba(233, 92, 92, 0.92), rgba(199, 62, 62, 0.9));
+      }
 
       body.theme-dark .badge {
-        border-color: #3c4450;
-        background: #1f242b;
-        color: #d1d5db;
+        border-color: var(--line);
+        background: var(--panel-soft);
+        color: var(--text);
       }
 
       body.theme-dark .status {
-        border-color: #3c4450;
-        background: #1b2027;
-        color: #d1d5db;
+        border-color: var(--line);
+        background: var(--panel-soft);
+        color: var(--text);
       }
 
       body.theme-dark .status.ok {
-        color: #86efac;
-        border-color: #2e5c42;
-        background: #13281c;
+        color: #87f0b8;
+        border-color: rgba(108, 212, 158, 0.34);
+        background: rgba(18, 55, 37, 0.56);
       }
 
       body.theme-dark .status.warn {
-        color: #fcd34d;
-        border-color: #5c4925;
-        background: #2a2418;
+        color: #ffd28f;
+        border-color: rgba(228, 173, 91, 0.34);
+        background: rgba(64, 46, 18, 0.56);
       }
 
       body.theme-dark .status.error {
-        color: #fca5a5;
-        border-color: #5c2c2c;
-        background: #2b1717;
+        color: #ffb2bd;
+        border-color: rgba(231, 124, 142, 0.34);
+        background: rgba(66, 27, 38, 0.56);
       }
 
       body.theme-dark .btn-secondary {
-        color: #e5e7eb;
-        background: #313843;
+        color: var(--text);
+        background: var(--panel-soft);
+        border-color: var(--line);
       }
 
       .layout {
@@ -161,9 +195,11 @@
       .panel {
         background: var(--panel);
         border: 1px solid var(--line);
-        border-radius: 16px;
+        border-radius: 20px;
+        backdrop-filter: var(--glass-blur);
         box-shadow: var(--shadow);
-        padding: 14px;
+        padding: 16px;
+        animation: glassIn 0.35s ease both;
       }
 
       .panel h2 { margin: 0 0 10px; font-size: 17px; }
@@ -194,13 +230,13 @@
       .tab-btn {
         border: 1px solid var(--line);
         background: var(--panel-soft);
-        color: var(--muted);
+        color: var(--text);
       }
 
       .tab-btn.active {
         color: #fff;
-        border-color: transparent;
-        background: linear-gradient(135deg, var(--brand), var(--brand-deep));
+        border-color: rgba(255, 255, 255, 0.24);
+        background: linear-gradient(138deg, rgba(65, 143, 255, 0.92), rgba(88, 113, 255, 0.92));
       }
 
       .sub-tab-page {
@@ -212,12 +248,13 @@
 
       input, select, textarea {
         width: 100%;
-        border: 1px solid #ccddd3;
-        border-radius: 10px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
         padding: 9px 10px;
         font-size: 14px;
         color: var(--text);
         background: var(--panel-soft);
+        backdrop-filter: var(--glass-blur);
       }
 
       textarea { min-height: 82px; resize: vertical; }
@@ -233,10 +270,12 @@
       .project-grid { display: grid; gap: 12px; }
 
       .project-card {
-        border: 1px solid #d8e5de;
-        border-radius: 14px;
-        background: #fbfefc;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.42);
+        backdrop-filter: var(--glass-blur);
         padding: 12px;
+        animation: glassIn 0.42s ease both;
       }
 
       .project-head {
@@ -253,11 +292,11 @@
         margin-top: 8px;
         height: 11px;
         border-radius: 999px;
-        background: #eaf3ee;
+        background: rgba(200, 219, 245, 0.7);
         overflow: hidden;
       }
 
-      .progress-bar { height: 100%; background: linear-gradient(90deg, #1e9b5e, #1b7a4b); }
+      .progress-bar { height: 100%; background: linear-gradient(90deg, #5e9dff, #5974ff); }
 
       .chip {
         border-radius: 999px;
@@ -268,18 +307,19 @@
         align-items: center;
       }
 
-      .chip.good { color: #146a32; background: #e6f7eb; }
-      .chip.warn { color: #9a5800; background: #fff2df; }
-      .chip.bad { color: #a81616; background: #ffe6e6; }
-      .chip.risk-green { color: #146a32; background: #e6f7eb; }
-      .chip.risk-yellow { color: #9a5800; background: #fff2df; }
-      .chip.risk-red { color: #a81616; background: #ffe6e6; }
+      .chip.good { color: #107343; background: rgba(202, 247, 225, 0.72); }
+      .chip.warn { color: #935b00; background: rgba(255, 236, 198, 0.74); }
+      .chip.bad { color: #9e2c3d; background: rgba(255, 215, 221, 0.75); }
+      .chip.risk-green { color: #107343; background: rgba(202, 247, 225, 0.72); }
+      .chip.risk-yellow { color: #935b00; background: rgba(255, 236, 198, 0.74); }
+      .chip.risk-red { color: #9e2c3d; background: rgba(255, 215, 221, 0.75); }
 
       .phase-grid { display: grid; gap: 10px; margin-top: 10px; }
       .phase-card {
-        border: 1px solid #dbe8e2;
-        border-radius: 12px;
-        background: #f8fcfa;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.36);
+        backdrop-filter: var(--glass-blur);
         padding: 10px;
       }
 
@@ -295,15 +335,16 @@
       th, td {
         text-align: left;
         padding: 6px 5px;
-        border-bottom: 1px solid #dbe6e0;
+        border-bottom: 1px solid rgba(168, 188, 220, 0.45);
         vertical-align: top;
       }
-      th { color: #4a6156; }
+      th { color: var(--muted); }
 
       .empty {
-        border: 1px dashed #c8d8cf;
+        border: 1px dashed var(--line);
         border-radius: 12px;
-        background: #f8fcfa;
+        background: rgba(255, 255, 255, 0.35);
+        backdrop-filter: var(--glass-blur);
         color: var(--muted);
         text-align: center;
         padding: 20px;
@@ -311,9 +352,10 @@
 
       .gantt {
         margin-top: 10px;
-        border: 1px solid #d8e5de;
+        border: 1px solid var(--line);
         border-radius: 12px;
-        background: #f8fcfa;
+        background: rgba(255, 255, 255, 0.36);
+        backdrop-filter: var(--glass-blur);
         padding: 10px;
       }
 
@@ -345,54 +387,54 @@
         border-radius: 999px;
         background: repeating-linear-gradient(
           90deg,
-          #ebf2ee,
-          #ebf2ee 10%,
-          #f4f8f5 10%,
-          #f4f8f5 20%
+          rgba(202, 217, 242, 0.7),
+          rgba(202, 217, 242, 0.7) 10%,
+          rgba(221, 232, 250, 0.7) 10%,
+          rgba(221, 232, 250, 0.7) 20%
         );
         overflow: hidden;
       }
 
       body.theme-dark .project-card {
-        border-color: #3b424d;
-        background: #1b1f26;
+        border-color: var(--line);
+        background: rgba(17, 31, 53, 0.5);
       }
 
       body.theme-dark .phase-card {
-        border-color: #3b424d;
-        background: #1f242c;
+        border-color: var(--line);
+        background: rgba(17, 31, 53, 0.46);
       }
 
       body.theme-dark .progress-wrap {
-        background: #323845;
+        background: rgba(78, 109, 164, 0.38);
       }
 
       body.theme-dark th,
       body.theme-dark td {
-        border-bottom-color: #3a414d;
+        border-bottom-color: rgba(143, 169, 208, 0.28);
       }
 
       body.theme-dark th {
-        color: #cbd5e1;
+        color: var(--muted);
       }
 
       body.theme-dark .empty {
-        border-color: #3b424d;
-        background: #1f242c;
+        border-color: var(--line);
+        background: rgba(17, 31, 53, 0.44);
       }
 
       body.theme-dark .gantt {
-        border-color: #3b424d;
-        background: #1f242c;
+        border-color: var(--line);
+        background: rgba(17, 31, 53, 0.44);
       }
 
       body.theme-dark .gantt-track {
         background: repeating-linear-gradient(
           90deg,
-          #2c3340,
-          #2c3340 10%,
-          #252b35 10%,
-          #252b35 20%
+          rgba(54, 78, 117, 0.62),
+          rgba(54, 78, 117, 0.62) 10%,
+          rgba(48, 70, 106, 0.62) 10%,
+          rgba(48, 70, 106, 0.62) 20%
         );
       }
 
@@ -401,7 +443,7 @@
         top: 3px;
         bottom: 3px;
         border-radius: 999px;
-        background: linear-gradient(90deg, #0f766e, #0ea5a0);
+        background: linear-gradient(90deg, #4e95ff, #576dff);
       }
 
       .gantt-fill {
@@ -417,6 +459,17 @@
         margin-top: 4px;
         color: var(--muted);
         font-size: 12px;
+      }
+
+      @keyframes glassIn {
+        from {
+          opacity: 0;
+          transform: translateY(6px) scale(0.994);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
       }
 
       @media (max-width: 1160px) {
@@ -484,11 +537,17 @@
         <section class="panel main-tabs hidden" id="mainTabsPanel">
           <div class="tab-buttons">
             <button id="tabDashboardBtn" class="tab-btn active" type="button">看板与配置</button>
+            <button id="tabOpsBtn" class="tab-btn hidden" type="button">创建与维护</button>
             <button id="tabAdminBtn" class="tab-btn hidden" type="button">管理员入口</button>
           </div>
         </section>
 
         <section class="tab-page hidden" id="dashboardTabPage">
+          <section class="panel dashboard hidden" id="dashboardPanel">
+            <h2>实时项目看板 + 甘特图</h2>
+            <div id="dashboard" class="project-grid"></div>
+          </section>
+
           <section class="panel progress hidden" id="progressPanel">
             <h2>更新进度</h2>
             <form id="progressForm">
@@ -538,14 +597,11 @@
               <button class="btn-primary" type="submit">提交进度</button>
             </form>
           </section>
+        </section>
 
-          <section class="panel dashboard hidden" id="dashboardPanel">
-            <h2>实时项目看板 + 甘特图</h2>
-            <div id="dashboard" class="project-grid"></div>
-          </section>
-
+        <section class="tab-page hidden" id="opsTabPage">
           <section class="panel ops hidden admin-only" id="opsPanel">
-            <h2>创建与维护（位于甘特图下方）</h2>
+            <h2>创建与维护</h2>
             <div class="tab-buttons">
               <button id="opsProjectBtn" class="tab-btn active" type="button">创建项目</button>
               <button id="opsProjectEditBtn" class="tab-btn" type="button">修改项目/参与者</button>
@@ -845,8 +901,10 @@
 
         mainTabsPanel: document.getElementById("mainTabsPanel"),
         dashboardTabPage: document.getElementById("dashboardTabPage"),
+        opsTabPage: document.getElementById("opsTabPage"),
         adminTabPage: document.getElementById("adminTabPage"),
         tabDashboardBtn: document.getElementById("tabDashboardBtn"),
+        tabOpsBtn: document.getElementById("tabOpsBtn"),
         tabAdminBtn: document.getElementById("tabAdminBtn"),
 
         projectPanel: document.getElementById("projectPanel"),
@@ -1531,12 +1589,20 @@
       }
 
       function setMainTab(tab) {
-        state.activeMainTab = tab === "admin" ? "admin" : "dashboard";
+        if (tab === "admin" || tab === "ops") {
+          state.activeMainTab = tab;
+        } else {
+          state.activeMainTab = "dashboard";
+        }
+        const isDashboardTab = state.activeMainTab === "dashboard";
+        const isOpsTab = state.activeMainTab === "ops";
         const isAdminTab = state.activeMainTab === "admin";
 
-        dom.tabDashboardBtn.classList.toggle("active", !isAdminTab);
+        dom.tabDashboardBtn.classList.toggle("active", isDashboardTab);
+        dom.tabOpsBtn.classList.toggle("active", isOpsTab);
         dom.tabAdminBtn.classList.toggle("active", isAdminTab);
-        dom.dashboardTabPage.classList.toggle("hidden", isAdminTab);
+        dom.dashboardTabPage.classList.toggle("hidden", !isDashboardTab);
+        dom.opsTabPage.classList.toggle("hidden", !isOpsTab);
         dom.adminTabPage.classList.toggle("hidden", !isAdminTab);
       }
 
@@ -1568,10 +1634,13 @@
           dom.currentUser.textContent = "未登录";
           dom.mainTabsPanel.classList.add("hidden");
           dom.dashboardTabPage.classList.add("hidden");
+          dom.opsTabPage.classList.add("hidden");
           dom.adminTabPage.classList.add("hidden");
           dom.opsPanel.classList.add("hidden");
           dom.progressPanel.classList.add("hidden");
           dom.dashboardPanel.classList.add("hidden");
+          dom.tabOpsBtn.classList.add("hidden");
+          dom.tabAdminBtn.classList.add("hidden");
           dom.adminUserPanel.classList.add("hidden");
           return;
         }
@@ -1584,12 +1653,14 @@
 
         if (state.me.role === "admin") {
           dom.opsPanel.classList.remove("hidden");
+          dom.tabOpsBtn.classList.remove("hidden");
           dom.tabAdminBtn.classList.remove("hidden");
           dom.adminUserPanel.classList.remove("hidden");
         } else {
           dom.opsPanel.classList.add("hidden");
+          dom.tabOpsBtn.classList.add("hidden");
           dom.tabAdminBtn.classList.add("hidden");
-          if (state.activeMainTab === "admin") {
+          if (state.activeMainTab === "admin" || state.activeMainTab === "ops") {
             setMainTab("dashboard");
           }
           dom.adminUserPanel.classList.add("hidden");
@@ -2103,6 +2174,7 @@
         dom.goalEditType.addEventListener("change", syncGoalEditTypeFields);
         dom.goalEditRequirementPriority.addEventListener("change", syncGoalEditTypeFields);
         dom.tabDashboardBtn.addEventListener("click", () => setMainTab("dashboard"));
+        dom.tabOpsBtn.addEventListener("click", () => setMainTab("ops"));
         dom.tabAdminBtn.addEventListener("click", () => setMainTab("admin"));
         dom.opsProjectBtn.addEventListener("click", () => setOpsTab("project"));
         dom.opsProjectEditBtn.addEventListener("click", () => setOpsTab("project-edit"));
