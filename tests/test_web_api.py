@@ -283,6 +283,161 @@ def test_web_api_issue_goal_progress_by_remaining_di(settings):
     assert dashboard_goal["note"] == "用于支付模块缺陷修复"
 
 
+def test_web_api_task_goal_progress_by_percent(settings):
+    app = create_app(settings)
+    client = TestClient(app)
+    admin_headers = _bootstrap_admin(client)
+
+    project_resp = client.post(
+        "/api/projects",
+        headers=admin_headers,
+        json={
+            "name": "Task API",
+            "deadline": _iso(30),
+            "participants": [{"name": "Owner", "email": "owner@example.com"}],
+        },
+    )
+    project = project_resp.json()
+
+    phase_resp = client.post(
+        "/api/phases",
+        headers=admin_headers,
+        json={
+            "project_id": project["id"],
+            "name": "Phase A",
+            "objective": "Track basic tasks",
+        },
+    )
+    phase = phase_resp.json()
+    owner_id = project["participants"][0]["id"]
+
+    goal_resp = client.post(
+        "/api/goals",
+        headers=admin_headers,
+        json={
+            "phase_id": phase["id"],
+            "title": "Basic Task Goal",
+            "note": "跟进客户对账与回执",
+            "owner_participant_id": owner_id,
+            "goal_type": "task",
+            "milestone_date": _iso(3),
+            "deadline": _iso(6),
+        },
+    )
+    assert goal_resp.status_code == 201
+    goal = goal_resp.json()
+    assert goal["goal_type"] == "task"
+    assert goal["note"] == "跟进客户对账与回执"
+
+    progress_resp = client.post(
+        "/api/progress",
+        headers=admin_headers,
+        json={
+            "goal_id": goal["id"],
+            "date": date.today().isoformat(),
+            "progress_percent": 55,
+            "updated_by": "web_tester",
+            "note": None,
+        },
+    )
+    assert progress_resp.status_code == 201
+    assert progress_resp.json()["progress_percent"] == 55.0
+    assert progress_resp.json()["requirement_total_count"] is None
+    assert progress_resp.json()["requirement_done_count"] is None
+
+    dashboard_resp = client.get(
+        f"/api/projects?as_of={date.today().isoformat()}",
+        headers=admin_headers,
+    )
+    dashboard_goal = dashboard_resp.json()["projects"][0]["phases"][0]["goals"][0]
+    assert dashboard_goal["goal_type"] == "task"
+    assert dashboard_goal["progress_percent"] == 55.0
+    assert dashboard_goal["note"] == "跟进客户对账与回执"
+
+
+def test_admin_can_update_project_and_participants(settings):
+    app = create_app(settings)
+    client = TestClient(app)
+    admin_headers = _bootstrap_admin(client)
+
+    project_resp = client.post(
+        "/api/projects",
+        headers=admin_headers,
+        json={
+            "name": "Project Old",
+            "deadline": _iso(40),
+            "participants": [
+                {"name": "Owner", "email": "owner@example.com"},
+                {"name": "Dev", "email": "dev@example.com"},
+            ],
+        },
+    )
+    assert project_resp.status_code == 201
+    project = project_resp.json()
+    project_id = project["id"]
+    owner_id = project["participants"][0]["id"]
+
+    phase_resp = client.post(
+        "/api/phases",
+        headers=admin_headers,
+        json={
+            "project_id": project_id,
+            "name": "Phase A",
+            "objective": "Objective",
+        },
+    )
+    assert phase_resp.status_code == 201
+    phase_id = phase_resp.json()["id"]
+
+    goal_resp = client.post(
+        "/api/goals",
+        headers=admin_headers,
+        json={
+            "phase_id": phase_id,
+            "title": "Goal A",
+            "owner_participant_id": owner_id,
+            "milestone_date": _iso(3),
+            "deadline": _iso(6),
+            "weight": 1,
+        },
+    )
+    assert goal_resp.status_code == 201
+
+    update_resp = client.put(
+        f"/api/projects/{project_id}",
+        headers=admin_headers,
+        json={
+            "name": "Project New",
+            "deadline": _iso(45),
+            "participants": [
+                {"name": "Owner Renamed", "email": "owner@example.com"},
+                {"name": "QA", "email": "qa@example.com"},
+            ],
+        },
+    )
+    assert update_resp.status_code == 200
+    updated = update_resp.json()
+    assert updated["name"] == "Project New"
+    assert updated["deadline"] == _iso(45)
+    assert len(updated["participants"]) == 2
+    participant_emails = {item["email"] for item in updated["participants"]}
+    assert participant_emails == {"owner@example.com", "qa@example.com"}
+    owner = next(item for item in updated["participants"] if item["email"] == "owner@example.com")
+    assert owner["name"] == "Owner Renamed"
+
+    remove_owner_resp = client.put(
+        f"/api/projects/{project_id}",
+        headers=admin_headers,
+        json={
+            "participants": [
+                {"name": "QA", "email": "qa@example.com"},
+            ],
+        },
+    )
+    assert remove_owner_resp.status_code == 400
+    assert "存在负责人目标" in remove_owner_resp.json()["detail"]
+
+
 def test_owner_permissions(settings):
     app = create_app(settings)
     client = TestClient(app)

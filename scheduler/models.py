@@ -67,7 +67,7 @@ class Goal(Base):
     __table_args__ = (
         CheckConstraint("weight > 0", name="ck_goals_weight_positive"),
         CheckConstraint("status in ('active', 'completed')", name="ck_goals_status"),
-        CheckConstraint("goal_type in ('requirement', 'issue')", name="ck_goals_goal_type"),
+        CheckConstraint("goal_type in ('requirement', 'issue', 'task')", name="ck_goals_goal_type"),
         CheckConstraint(
             "requirement_priority is null or (requirement_priority >= 1 and requirement_priority <= 5)",
             name="ck_goals_requirement_priority",

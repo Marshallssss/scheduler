@@ -5,7 +5,7 @@ from datetime import date
 from collections import defaultdict
 from typing import Optional
 
-from scheduler.constants import GOAL_STATUS_ACTIVE, GOAL_STATUS_COMPLETED, GOAL_TYPE_ISSUE
+from scheduler.constants import GOAL_STATUS_ACTIVE, GOAL_STATUS_COMPLETED, GOAL_TYPE_ISSUE, GOAL_TYPE_REQUIREMENT
 from scheduler.repositories import GoalSnapshot, Repository
 from scheduler.utils import weighted_progress
 
@@ -72,7 +72,7 @@ class ProgressService:
             computed_progress = round(max(0.0, min(100.0, (goal.issue_total_di - remaining_di) * 100 / goal.issue_total_di)), 2)
             requirement_total_count = None
             requirement_done_count = None
-        else:
+        elif goal.goal_type == GOAL_TYPE_REQUIREMENT:
             if requirement_total_count is not None or requirement_done_count is not None:
                 if requirement_total_count is None or requirement_done_count is None:
                     raise ValueError("需求型目标需同时填写总需求数和已完成需求数")
@@ -100,6 +100,20 @@ class ProgressService:
                 raise ValueError("进度回退时必须填写备注")
 
             remaining_di = None
+        else:
+            if progress_percent is None:
+                raise ValueError("事务型目标必须填写完成率")
+            if progress_percent < 0 or progress_percent > 100:
+                raise ValueError("完成率必须在 0-100")
+            computed_progress = float(progress_percent)
+
+            latest_progress = latest.progress_percent if latest is not None else 0.0
+            if computed_progress < latest_progress and clean_note is None:
+                raise ValueError("进度回退时必须填写备注")
+
+            remaining_di = None
+            requirement_total_count = None
+            requirement_done_count = None
 
         update = self.repo.upsert_progress(
             goal_id=goal_id,

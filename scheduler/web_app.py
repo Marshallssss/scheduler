@@ -32,6 +32,12 @@ class ProjectCreateInput(BaseModel):
     participants: list[ParticipantInput]
 
 
+class ProjectUpdateInput(BaseModel):
+    name: Optional[str] = None
+    deadline: Optional[date] = None
+    participants: Optional[list[ParticipantInput]] = None
+
+
 class PhaseCreateInput(BaseModel):
     project_id: int
     name: str = Field(..., min_length=1)
@@ -508,6 +514,33 @@ def create_app(settings: Settings) -> FastAPI:
                     participants=[(item.name, item.email) for item in payload.participants],
                 )
             except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+            return _project_payload(repo, progress_service, project.id, date.today(), user)
+
+    @app.put("/api/projects/{project_id}")
+    def update_project(
+        project_id: int,
+        payload: ProjectUpdateInput,
+        authorization: Optional[str] = Header(None),
+    ) -> dict:
+        with session_scope(session_factory) as session:
+            repo = Repository(session)
+            project_service = ProjectService(repo)
+            progress_service = ProgressService(repo)
+            user, _, _ = _require_auth_user(repo, auth_service, authorization)
+            _ensure_admin(user)
+            try:
+                project = project_service.update_project(
+                    project_id=project_id,
+                    name=payload.name,
+                    deadline=payload.deadline,
+                    participants=[
+                        (item.name, item.email)
+                        for item in payload.participants
+                    ] if payload.participants is not None else None,
+                )
+            except (ValueError, IntegrityError) as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
 
             return _project_payload(repo, progress_service, project.id, date.today(), user)

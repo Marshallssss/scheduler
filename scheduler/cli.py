@@ -7,7 +7,14 @@ from typing import Optional
 import typer
 
 from scheduler.config import DEFAULT_CONFIG_PATH, config_template, load_settings
-from scheduler.constants import GOAL_TYPE_ISSUE, GOAL_TYPE_REQUIREMENT, REPORT_DAILY, REPORT_MONTHLY, REPORT_WEEKLY
+from scheduler.constants import (
+    GOAL_TYPE_ISSUE,
+    GOAL_TYPE_REQUIREMENT,
+    GOAL_TYPE_TASK,
+    REPORT_DAILY,
+    REPORT_MONTHLY,
+    REPORT_WEEKLY,
+)
 from scheduler.db import create_session_factory, init_db, session_scope
 from scheduler.logging_utils import configure_logging
 from scheduler.repositories import Repository
@@ -164,10 +171,11 @@ def goal_add(
     owner_id: Optional[int] = typer.Option(None, "--owner-id", help="负责人 participant ID"),
     milestone: Optional[str] = typer.Option(None, "--milestone", help="里程碑日期 YYYY-MM-DD"),
     deadline: Optional[str] = typer.Option(None, "--deadline", help="目标截止日期 YYYY-MM-DD"),
-    goal_type: Optional[str] = typer.Option(None, "--goal-type", help="目标类型 requirement|issue"),
+    goal_type: Optional[str] = typer.Option(None, "--goal-type", help="目标类型 requirement|issue|task"),
     requirement_priority: Optional[int] = typer.Option(None, "--requirement-priority", help="需求优先级 1-5"),
     issue_module: Optional[str] = typer.Option(None, "--issue-module", help="问题单所属模块"),
     issue_total_di: Optional[float] = typer.Option(None, "--issue-total-di", help="问题单总 DI"),
+    note: Optional[str] = typer.Option(None, "--note", help="目标备注（task 类型必填）"),
     weight: Optional[float] = typer.Option(None, "--weight", help="权重，默认 1.0"),
 ) -> None:
     """添加小目标。"""
@@ -193,11 +201,14 @@ def goal_add(
         use_title = title or typer.prompt("目标标题")
         milestone_date = _parse_date_or_exit(milestone or typer.prompt("里程碑日期 (YYYY-MM-DD)"), "里程碑日期")
         deadline_date = _parse_date_or_exit(deadline or typer.prompt("目标截止日期 (YYYY-MM-DD)"), "目标截止日期")
-        use_goal_type = (goal_type or typer.prompt("目标类型 requirement|issue", default=GOAL_TYPE_REQUIREMENT)).strip().lower()
+        use_goal_type = (
+            goal_type or typer.prompt("目标类型 requirement|issue|task", default=GOAL_TYPE_REQUIREMENT)
+        ).strip().lower()
 
         use_requirement_priority = requirement_priority
         use_issue_module = issue_module
         use_issue_total_di = issue_total_di
+        use_note = note
         if use_goal_type == GOAL_TYPE_REQUIREMENT:
             if use_requirement_priority is None:
                 priority_raw = typer.prompt("需求优先级(1-5，可留空)", default="")
@@ -209,6 +220,12 @@ def goal_add(
                 use_issue_module = typer.prompt("问题单所属模块")
             if use_issue_total_di is None:
                 use_issue_total_di = float(typer.prompt("问题单总 DI"))
+        elif use_goal_type == GOAL_TYPE_TASK:
+            use_requirement_priority = None
+            use_issue_module = None
+            use_issue_total_di = None
+            if use_note is None or not use_note.strip():
+                use_note = typer.prompt("事务型目标备注（明确事务内容）").strip()
 
         goal = project_service.add_goal(
             phase_id=phase_id,
@@ -221,6 +238,7 @@ def goal_add(
             requirement_priority=use_requirement_priority,
             issue_module=use_issue_module,
             issue_total_di=use_issue_total_di,
+            note=use_note,
         )
         typer.echo(
             f"目标添加成功: id={goal.id}, title={goal.title}, type={goal.goal_type}, "

@@ -166,6 +166,41 @@ def test_issue_goal_remaining_di_increase_requires_note(session):
     svc.record_progress(goal.id, base, progress_percent=None, remaining_di=12, updated_by="pm", note="新增问题单")
 
 
+def test_task_goal_tracks_progress_by_manual_percent(session):
+    base = date(2026, 3, 2)
+    repo = Repository(session)
+
+    project = repo.create_project(
+        name="Task progress",
+        deadline=base + timedelta(days=20),
+        participants=[("A", "a@example.com")],
+    )
+    phase = repo.add_phase(project.id, name="P1", objective="Obj")
+    owner = repo.list_project_participants(project.id)[0]
+    goal = repo.add_goal(
+        phase_id=phase.id,
+        title="task-goal",
+        note="跟进合同审批与回签",
+        owner_participant_id=owner.id,
+        milestone_date=base + timedelta(days=1),
+        deadline=base + timedelta(days=5),
+        weight=1,
+        goal_type="task",
+    )
+
+    svc = ProgressService(repo)
+    update = svc.record_progress(goal.id, base, progress_percent=42, updated_by="pm")
+    assert update.progress_percent == 42.0
+    assert update.requirement_total_count is None
+    assert update.requirement_done_count is None
+    assert update.remaining_di is None
+
+    with pytest.raises(ValueError, match="回退"):
+        svc.record_progress(goal.id, base, progress_percent=35, updated_by="pm")
+
+    svc.record_progress(goal.id, base, progress_percent=35, updated_by="pm", note="事务范围重估")
+
+
 def test_requirement_goal_tracks_progress_by_counts(session):
     base = date(2026, 3, 2)
     repo = Repository(session)

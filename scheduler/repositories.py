@@ -52,6 +52,15 @@ class Repository:
     def get_project(self, project_id: int) -> Optional[Project]:
         return self.session.get(Project, project_id)
 
+    def update_project(self, project_id: int, name: str, deadline: date) -> Project:
+        project = self.get_project(project_id)
+        if project is None:
+            raise ValueError(f"项目不存在: {project_id}")
+        project.name = name
+        project.deadline = deadline
+        self.session.flush()
+        return project
+
     def list_projects(self) -> list[Project]:
         stmt = select(Project).order_by(Project.id.asc())
         return list(self.session.scalars(stmt))
@@ -88,6 +97,21 @@ class Repository:
         self.session.add(participant)
         self.session.flush()
         return participant
+
+    def delete_participant(self, participant_id: int) -> None:
+        participant = self.get_participant(participant_id)
+        if participant is None:
+            return
+        self.session.delete(participant)
+        self.session.flush()
+
+    def participant_has_owned_goals(self, participant_id: int) -> bool:
+        stmt = select(Goal.id).where(Goal.owner_participant_id == participant_id).limit(1)
+        return self.session.scalar(stmt) is not None
+
+    def participant_has_user_account(self, participant_id: int) -> bool:
+        stmt = select(UserAccount.id).where(UserAccount.participant_id == participant_id).limit(1)
+        return self.session.scalar(stmt) is not None
 
     def add_phase(
         self,

@@ -174,6 +174,7 @@
       .tab-page { grid-column: span 12; display: grid; gap: 14px; }
       .admin-users { grid-column: span 4; }
       .project { grid-column: span 4; }
+      .project-edit { grid-column: span 6; }
       .phase { grid-column: span 4; }
       .goal { grid-column: span 4; }
       .phase-edit { grid-column: span 6; }
@@ -419,7 +420,7 @@
       }
 
       @media (max-width: 1160px) {
-        .admin-users, .project, .phase, .goal, .phase-edit, .goal-edit { grid-column: span 12; }
+        .admin-users, .project, .project-edit, .phase, .goal, .phase-edit, .goal-edit { grid-column: span 12; }
       }
 
       @media (max-width: 760px) {
@@ -517,7 +518,7 @@
                   </div>
                 </div>
                 <div class="field hidden" id="progressPercentField">
-                  <label for="progressValue">完成率 0-100（兼容模式）</label>
+                  <label for="progressValue">完成率 0-100</label>
                   <input id="progressValue" type="number" min="0" max="100" step="0.01" />
                 </div>
                 <div class="field hidden" id="progressRemainingDiField">
@@ -547,6 +548,7 @@
             <h2>创建与维护（位于甘特图下方）</h2>
             <div class="tab-buttons">
               <button id="opsProjectBtn" class="tab-btn active" type="button">创建项目</button>
+              <button id="opsProjectEditBtn" class="tab-btn" type="button">修改项目/参与者</button>
               <button id="opsPhaseBtn" class="tab-btn" type="button">添加阶段</button>
               <button id="opsGoalBtn" class="tab-btn" type="button">添加目标</button>
               <button id="opsPhaseEditBtn" class="tab-btn" type="button">修改/删除阶段</button>
@@ -568,6 +570,28 @@
                   <textarea id="projectParticipants" required placeholder="张三,zhangsan@example.com\n李四,lisi@example.com"></textarea>
                 </div>
                 <button class="btn-primary" type="submit">创建项目</button>
+              </form>
+            </section>
+
+            <section class="sub-tab-page project-edit hidden" id="projectEditPanel">
+              <form id="projectEditForm">
+                <div class="field">
+                  <label for="projectEditId">选择项目</label>
+                  <select id="projectEditId" required></select>
+                </div>
+                <div class="field">
+                  <label for="projectEditName">项目名称</label>
+                  <input id="projectEditName" required />
+                </div>
+                <div class="field">
+                  <label for="projectEditDeadline">项目截止日期</label>
+                  <input id="projectEditDeadline" type="date" required />
+                </div>
+                <div class="field">
+                  <label for="projectEditParticipants">参与者（每行：姓名,邮箱）</label>
+                  <textarea id="projectEditParticipants" required placeholder="张三,zhangsan@example.com\n李四,lisi@example.com"></textarea>
+                </div>
+                <button class="btn-primary" type="submit">保存项目与参与者</button>
               </form>
             </section>
 
@@ -604,6 +628,7 @@
                   <select id="goalType" required>
                     <option value="requirement">需求型（按完成率）</option>
                     <option value="issue">问题单型（按剩余 DI）</option>
+                    <option value="task">事务型（按百分比手动更新）</option>
                   </select>
                 </div>
                 <div class="field">
@@ -694,6 +719,7 @@
                   <select id="goalEditType" required>
                     <option value="requirement">需求型（按完成率）</option>
                     <option value="issue">问题单型（按剩余 DI）</option>
+                    <option value="task">事务型（按百分比手动更新）</option>
                   </select>
                 </div>
                 <div class="field">
@@ -824,12 +850,14 @@
         tabAdminBtn: document.getElementById("tabAdminBtn"),
 
         projectPanel: document.getElementById("projectPanel"),
+        projectEditPanel: document.getElementById("projectEditPanel"),
         phasePanel: document.getElementById("phasePanel"),
         goalPanel: document.getElementById("goalPanel"),
         phaseEditPanel: document.getElementById("phaseEditPanel"),
         goalEditPanel: document.getElementById("goalEditPanel"),
         opsPanel: document.getElementById("opsPanel"),
         opsProjectBtn: document.getElementById("opsProjectBtn"),
+        opsProjectEditBtn: document.getElementById("opsProjectEditBtn"),
         opsPhaseBtn: document.getElementById("opsPhaseBtn"),
         opsGoalBtn: document.getElementById("opsGoalBtn"),
         opsPhaseEditBtn: document.getElementById("opsPhaseEditBtn"),
@@ -838,6 +866,7 @@
         dashboardPanel: document.getElementById("dashboardPanel"),
 
         projectForm: document.getElementById("projectForm"),
+        projectEditForm: document.getElementById("projectEditForm"),
         phaseForm: document.getElementById("phaseForm"),
         goalForm: document.getElementById("goalForm"),
         phaseEditForm: document.getElementById("phaseEditForm"),
@@ -846,6 +875,10 @@
 
         projectDeadline: document.getElementById("projectDeadline"),
         projectParticipants: document.getElementById("projectParticipants"),
+        projectEditId: document.getElementById("projectEditId"),
+        projectEditName: document.getElementById("projectEditName"),
+        projectEditDeadline: document.getElementById("projectEditDeadline"),
+        projectEditParticipants: document.getElementById("projectEditParticipants"),
         phaseProjectId: document.getElementById("phaseProjectId"),
         phaseName: document.getElementById("phaseName"),
         phaseObjective: document.getElementById("phaseObjective"),
@@ -1037,10 +1070,24 @@
         if (goal.goal_type === "issue") {
           return `问题单 / ${goal.issue_module || "未分模块"}`;
         }
+        if (goal.goal_type === "task") {
+          return "事务 / 手动进度";
+        }
         if (goal.requirement_priority) {
           return `需求 / P${goal.requirement_priority}`;
         }
         return "需求 / 未分级";
+      }
+
+      function goalProgressText(goal) {
+        const percent = Number(goal.progress_percent || 0).toFixed(2);
+        if (goal.goal_type === "issue") {
+          return `${percent}% / DI:${Number(goal.remaining_di ?? goal.issue_total_di ?? 0).toFixed(2)}`;
+        }
+        if (goal.goal_type === "task") {
+          return `${percent}% / 手动`;
+        }
+        return `${percent}% / 需求:${Number(goal.requirement_done_count ?? 0)}/${Number(goal.requirement_total_count ?? 0)}`;
       }
 
       function goalRiskClass(goal) {
@@ -1129,7 +1176,9 @@
             const noteText = goal.note ? ` | 备注：${goal.note}` : "";
             const progressText = goal.goal_type === "issue"
               ? `${fill.toFixed(2)}% | 剩余DI:${Number(goal.remaining_di ?? goal.issue_total_di ?? 0).toFixed(2)}`
-              : `${fill.toFixed(2)}% | 需求:${Number(goal.requirement_done_count ?? 0)}/${Number(goal.requirement_total_count ?? 0)}`;
+              : goal.goal_type === "task"
+                ? `${fill.toFixed(2)}% | 手动`
+                : `${fill.toFixed(2)}% | 需求:${Number(goal.requirement_done_count ?? 0)}/${Number(goal.requirement_total_count ?? 0)}`;
 
             return `<div class="gantt-row">
               <div class="gantt-label" title="${escapeHtml(goal.phaseName)} / ${escapeHtml(goal.title)}${escapeHtml(noteText)}">${escapeHtml(goal.phaseName)} / ${escapeHtml(goal.title)}</div>
@@ -1186,9 +1235,7 @@
                         const noteBadge = goal.note
                           ? ` <span class="meta" title="${escapeHtml(goal.note)}">(备注)</span>`
                           : "";
-                        const progressText = goal.goal_type === "issue"
-                          ? `${Number(goal.progress_percent).toFixed(2)}% / DI:${Number(goal.remaining_di ?? goal.issue_total_di ?? 0).toFixed(2)}`
-                          : `${Number(goal.progress_percent).toFixed(2)}% / 需求:${Number(goal.requirement_done_count ?? 0)}/${Number(goal.requirement_total_count ?? 0)}`;
+                        const progressText = goalProgressText(goal);
                         return `<tr>
                       <td>${escapeHtml(goal.title)}${noteBadge}</td>
                       <td>${escapeHtml(goalTypeLabel(goal))}</td>
@@ -1264,8 +1311,9 @@
 
       function syncGoalTypeFields() {
         const isIssue = dom.goalType.value === "issue";
+        const isTask = dom.goalType.value === "task";
         dom.goalIssueFields.classList.toggle("hidden", !isIssue);
-        dom.goalRequirementPriorityField.classList.toggle("hidden", isIssue);
+        dom.goalRequirementPriorityField.classList.toggle("hidden", isIssue || isTask);
 
         if (isIssue) {
           if (!dom.goalIssueTotalDi.value) {
@@ -1274,10 +1322,39 @@
           if (!dom.goalWeight.value) {
             dom.goalWeight.value = "1";
           }
+        } else if (isTask) {
+          if (!dom.goalWeight.value) {
+            dom.goalWeight.value = "1";
+          }
         } else {
           const priority = dom.goalRequirementPriority.value;
           dom.goalWeight.value = String(defaultWeightForPriority(priority));
         }
+      }
+
+      function participantsToTextarea(participants) {
+        return (participants || [])
+          .map((item) => `${item.name},${item.email}`)
+          .join("\n");
+      }
+
+      function syncProjectEditForm() {
+        const options = state.projects.map((project) => ({
+          value: project.id,
+          label: `#${project.id} ${project.name}`,
+        }));
+        upsertSelectOptions(dom.projectEditId, options);
+
+        const project = state.projectMap.get(Number(dom.projectEditId.value || 0));
+        if (!project) {
+          dom.projectEditName.value = "";
+          dom.projectEditDeadline.value = "";
+          dom.projectEditParticipants.value = "";
+          return;
+        }
+        dom.projectEditName.value = project.name || "";
+        dom.projectEditDeadline.value = project.deadline || "";
+        dom.projectEditParticipants.value = participantsToTextarea(project.participants);
       }
 
       function syncPhaseEditForm() {
@@ -1306,9 +1383,14 @@
 
       function syncGoalEditTypeFields() {
         const isIssue = dom.goalEditType.value === "issue";
+        const isTask = dom.goalEditType.value === "task";
         dom.goalEditIssueFields.classList.toggle("hidden", !isIssue);
-        dom.goalEditRequirementPriorityField.classList.toggle("hidden", isIssue);
+        dom.goalEditRequirementPriorityField.classList.toggle("hidden", isIssue || isTask);
         if (isIssue) {
+          if (!dom.goalEditWeight.value) {
+            dom.goalEditWeight.value = "1";
+          }
+        } else if (isTask) {
           if (!dom.goalEditWeight.value) {
             dom.goalEditWeight.value = "1";
           }
@@ -1374,15 +1456,20 @@
       function syncProgressInputMode() {
         const goal = state.goalMap.get(Number(dom.progressGoalId.value || 0));
         const isIssue = goal && goal.goal_type === "issue";
+        const isTask = goal && goal.goal_type === "task";
 
-        dom.progressRequirementFields.classList.toggle("hidden", !!isIssue);
-        dom.progressPercentField.classList.add("hidden");
+        dom.progressRequirementFields.classList.toggle("hidden", !!isIssue || !!isTask);
+        dom.progressPercentField.classList.toggle("hidden", !isTask);
         dom.progressRemainingDiField.classList.toggle("hidden", !isIssue);
 
         if (isIssue) {
           const currentRemaining = Number(goal.remaining_di ?? goal.issue_total_di ?? 0);
           dom.progressRemainingDi.value = Number.isFinite(currentRemaining) ? currentRemaining.toFixed(2) : "0";
           dom.progressInputHint.textContent = `问题单型目标：按剩余 DI 跟踪（当前剩余 ${dom.progressRemainingDi.value}）`;
+        } else if (isTask) {
+          const currentProgress = Number(goal ? goal.progress_percent : 0);
+          dom.progressValue.value = Number.isFinite(currentProgress) ? currentProgress.toFixed(2) : "0";
+          dom.progressInputHint.textContent = "事务型目标：直接填写完成率百分比。";
         } else {
           const currentProgress = Number(goal ? goal.progress_percent : 0);
           dom.progressValue.value = Number.isFinite(currentProgress) ? currentProgress.toFixed(2) : "0";
@@ -1403,9 +1490,7 @@
           phase.goals
             .filter((goal) => goal.editable)
             .forEach((goal) => {
-              const progressText = goal.goal_type === "issue"
-                ? `${Number(goal.progress_percent).toFixed(2)}% / DI:${Number(goal.remaining_di ?? goal.issue_total_di ?? 0).toFixed(2)}`
-                : `${Number(goal.progress_percent).toFixed(2)}% / 需求:${Number(goal.requirement_done_count ?? 0)}/${Number(goal.requirement_total_count ?? 0)}`;
+              const progressText = goalProgressText(goal);
               options.push({
                 value: goal.id,
                 label: `${phase.name} / ${goal.title} (${progressText})`,
@@ -1429,6 +1514,7 @@
         });
         upsertSelectOptions(dom.goalPhaseId, phaseOpts);
 
+        syncProjectEditForm();
         syncGoalOwnersByPhase();
         syncGoalTypeFields();
         syncPhaseEditForm();
@@ -1455,16 +1541,18 @@
       }
 
       function setOpsTab(tab) {
-        const valid = new Set(["project", "phase", "goal", "phase-edit", "goal-edit"]);
+        const valid = new Set(["project", "project-edit", "phase", "goal", "phase-edit", "goal-edit"]);
         state.activeOpsTab = valid.has(tab) ? tab : "project";
 
         dom.opsProjectBtn.classList.toggle("active", state.activeOpsTab === "project");
+        dom.opsProjectEditBtn.classList.toggle("active", state.activeOpsTab === "project-edit");
         dom.opsPhaseBtn.classList.toggle("active", state.activeOpsTab === "phase");
         dom.opsGoalBtn.classList.toggle("active", state.activeOpsTab === "goal");
         dom.opsPhaseEditBtn.classList.toggle("active", state.activeOpsTab === "phase-edit");
         dom.opsGoalEditBtn.classList.toggle("active", state.activeOpsTab === "goal-edit");
 
         dom.projectPanel.classList.toggle("hidden", state.activeOpsTab !== "project");
+        dom.projectEditPanel.classList.toggle("hidden", state.activeOpsTab !== "project-edit");
         dom.phasePanel.classList.toggle("hidden", state.activeOpsTab !== "phase");
         dom.goalPanel.classList.toggle("hidden", state.activeOpsTab !== "goal");
         dom.phaseEditPanel.classList.toggle("hidden", state.activeOpsTab !== "phase-edit");
@@ -1682,6 +1770,34 @@
         }
       }
 
+      async function handleUpdateProject(event) {
+        event.preventDefault();
+        try {
+          const projectId = Number(dom.projectEditId.value);
+          if (!projectId) {
+            throw new Error("暂无可编辑项目");
+          }
+          const participants = parseParticipants(dom.projectEditParticipants.value);
+          if (!participants.length) {
+            throw new Error("至少输入 1 位参与者");
+          }
+
+          await requestJson(`/api/projects/${projectId}`, {
+            method: "PUT",
+            body: JSON.stringify({
+              name: dom.projectEditName.value.trim(),
+              deadline: dom.projectEditDeadline.value,
+              participants,
+            }),
+          });
+          await refreshAll(true);
+          syncProjectEditForm();
+          showStatus("项目与参与者已更新", "ok");
+        } catch (err) {
+          showStatus(err.message, "error");
+        }
+      }
+
       async function handleCreatePhase(event) {
         event.preventDefault();
         try {
@@ -1705,6 +1821,7 @@
         event.preventDefault();
         try {
           const goalType = dom.goalType.value;
+          const note = dom.goalNote.value.trim();
           const issueTotalDi = Number(dom.goalIssueTotalDi.value);
           if (goalType === "issue") {
             if (!dom.goalIssueModule.value.trim()) {
@@ -1714,13 +1831,16 @@
               throw new Error("问题单总 DI 必须大于 0");
             }
           }
+          if (goalType === "task" && !note) {
+            throw new Error("事务型目标必须填写备注，明确事务内容");
+          }
 
           await requestJson("/api/goals", {
             method: "POST",
             body: JSON.stringify({
               phase_id: Number(dom.goalPhaseId.value),
               title: dom.goalTitle.value.trim(),
-              note: dom.goalNote.value.trim() || null,
+              note: note || null,
               owner_participant_id: Number(dom.goalOwnerId.value),
               goal_type: goalType,
               requirement_priority: goalType === "requirement" && dom.goalRequirementPriority.value
@@ -1788,6 +1908,7 @@
             throw new Error("暂无可编辑目标");
           }
           const goalType = dom.goalEditType.value;
+          const note = dom.goalEditNote.value.trim();
           const issueTotalDi = Number(dom.goalEditIssueTotalDi.value);
           if (goalType === "issue") {
             if (!dom.goalEditIssueModule.value.trim()) {
@@ -1797,12 +1918,15 @@
               throw new Error("问题单总 DI 必须大于 0");
             }
           }
+          if (goalType === "task" && !note) {
+            throw new Error("事务型目标必须填写备注，明确事务内容");
+          }
 
           await requestJson(`/api/goals/${goalId}`, {
             method: "PUT",
             body: JSON.stringify({
               title: dom.goalEditTitle.value.trim(),
-              note: dom.goalEditNote.value.trim() || null,
+              note: note || null,
               owner_participant_id: Number(dom.goalEditOwnerId.value),
               goal_type: goalType,
               requirement_priority: goalType === "requirement" && dom.goalEditRequirementPriority.value
@@ -1855,6 +1979,14 @@
             }
             if (remainingDi > latestRemaining && !note) {
               throw new Error("剩余 DI 增加时必须填写备注");
+            }
+          } else if (goal && goal.goal_type === "task") {
+            progressPercent = Number(dom.progressValue.value);
+            if (Number.isNaN(progressPercent) || progressPercent < 0 || progressPercent > 100) {
+              throw new Error("事务型目标完成率必须在 0-100");
+            }
+            if (progressPercent < Number(goal.progress_percent || 0) && !note) {
+              throw new Error("回退进度必须填写备注");
             }
           } else {
             const totalRaw = dom.progressRequirementTotal.value.trim();
@@ -1950,6 +2082,7 @@
         dom.createUserForm.addEventListener("submit", handleCreateUser);
 
         dom.projectForm.addEventListener("submit", handleCreateProject);
+        dom.projectEditForm.addEventListener("submit", handleUpdateProject);
         dom.phaseForm.addEventListener("submit", handleCreatePhase);
         dom.goalForm.addEventListener("submit", handleCreateGoal);
         dom.phaseEditForm.addEventListener("submit", handleUpdatePhase);
@@ -1964,6 +2097,7 @@
         dom.progressProjectId.addEventListener("change", syncProgressGoalsByProject);
         dom.progressGoalId.addEventListener("change", syncProgressInputMode);
         dom.newRole.addEventListener("change", toggleParticipantField);
+        dom.projectEditId.addEventListener("change", syncProjectEditForm);
         dom.phaseEditId.addEventListener("change", syncPhaseEditForm);
         dom.goalEditId.addEventListener("change", syncGoalEditForm);
         dom.goalEditType.addEventListener("change", syncGoalEditTypeFields);
@@ -1971,6 +2105,7 @@
         dom.tabDashboardBtn.addEventListener("click", () => setMainTab("dashboard"));
         dom.tabAdminBtn.addEventListener("click", () => setMainTab("admin"));
         dom.opsProjectBtn.addEventListener("click", () => setOpsTab("project"));
+        dom.opsProjectEditBtn.addEventListener("click", () => setOpsTab("project-edit"));
         dom.opsPhaseBtn.addEventListener("click", () => setOpsTab("phase"));
         dom.opsGoalBtn.addEventListener("click", () => setOpsTab("goal"));
         dom.opsPhaseEditBtn.addEventListener("click", () => setOpsTab("phase-edit"));

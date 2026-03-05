@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Optional
 
-from scheduler.constants import GOAL_TYPE_ISSUE, GOAL_TYPE_REQUIREMENT, GOAL_TYPES
+from scheduler.constants import GOAL_TYPE_ISSUE, GOAL_TYPE_REQUIREMENT, GOAL_TYPE_TASK, GOAL_TYPES
 from scheduler.repositories import Repository
 
 
@@ -12,26 +12,49 @@ class ProjectService:
         self.repo = repo
 
     def create_project(self, name: str, deadline: date, participants: list[tuple[str, str]]):
-        if not name.strip():
+        clean_name = name.strip()
+        if not clean_name:
             raise ValueError("项目名称不能为空")
         if deadline < date.today():
             raise ValueError("项目截止日期不能早于今天")
-        if not participants:
-            raise ValueError("至少需要 1 位参与者")
 
-        clean_participants: list[tuple[str, str]] = []
-        seen_emails: set[str] = set()
-        for participant_name, email in participants:
-            participant_name = participant_name.strip()
-            email = email.strip().lower()
-            if not participant_name or not email:
-                raise ValueError("参与者姓名和邮箱不能为空")
-            if email in seen_emails:
-                raise ValueError(f"参与者邮箱重复: {email}")
-            seen_emails.add(email)
-            clean_participants.append((participant_name, email))
+        clean_participants = self._normalize_participants(participants)
+        return self.repo.create_project(name=clean_name, deadline=deadline, participants=clean_participants)
 
-        return self.repo.create_project(name=name.strip(), deadline=deadline, participants=clean_participants)
+    def update_project(
+        self,
+        project_id: int,
+        name: Optional[str] = None,
+        deadline: Optional[date] = None,
+        participants: Optional[list[tuple[str, str]]] = None,
+    ):
+        project = self.repo.get_project(project_id)
+        if project is None:
+            raise ValueError(f"项目不存在: {project_id}")
+
+        use_name = project.name
+        if name is not None:
+            use_name = name.strip()
+            if not use_name:
+                raise ValueError("项目名称不能为空")
+
+        use_deadline = project.deadline if deadline is None else deadline
+        if use_deadline < date.today():
+            raise ValueError("项目截止日期不能早于今天")
+
+        goals = self.repo.list_goals_by_project(project_id)
+        max_goal_deadline = max((goal.deadline for goal in goals), default=None)
+        if max_goal_deadline is not None and use_deadline < max_goal_deadline:
+            raise ValueError(f"项目截止日期不能早于现有目标截止日期: {max_goal_deadline.isoformat()}")
+
+        project = self.repo.update_project(project_id=project_id, name=use_name, deadline=use_deadline)
+
+        if participants is not None:
+            clean_participants = self._normalize_participants(participants)
+            self._sync_project_participants(project_id=project_id, participants=clean_participants)
+
+        self.repo.session.flush()
+        return project
 
     def add_phase(self, project_id: int, name: str, objective: str, order_index: Optional[int] = None):
         project = self.repo.get_project(project_id)
@@ -144,6 +167,10 @@ class ProjectService:
             use_issue_total_di = None
         if use_goal_type == GOAL_TYPE_ISSUE:
             use_requirement_priority = None
+        if use_goal_type == GOAL_TYPE_TASK:
+            use_requirement_priority = None
+            use_issue_module = None
+            use_issue_total_di = None
 
         updated_goal = self._create_or_update_goal(
             phase_id=goal.phase_id,
@@ -206,7 +233,7 @@ class ProjectService:
 
         normalized_goal_type = goal_type.strip().lower()
         if normalized_goal_type not in GOAL_TYPES:
-            raise ValueError("goal_type 仅支持 requirement 或 issue")
+            raise ValueError("goal_type 仅支持 requirement、issue 或 task")
 
         normalized_issue_module = issue_module.strip() if issue_module else None
 
@@ -217,7 +244,7 @@ class ProjectService:
             use_weight = default_weight if weight is None else weight
             use_issue_module = None
             use_issue_total_di = None
-        else:
+        elif normalized_goal_type == GOAL_TYPE_ISSUE:
             if issue_total_di is None or issue_total_di <= 0:
                 raise ValueError("问题单型目标必须提供大于 0 的总 DI")
             if not normalized_issue_module:
@@ -226,6 +253,13 @@ class ProjectService:
             use_issue_module = normalized_issue_module
             use_issue_total_di = issue_total_di
             requirement_priority = None
+        else:
+            if note is None or not note.strip():
+                raise ValueError("事务型目标必须填写备注，明确事务内容")
+            use_weight = 1.0 if weight is None else weight
+            requirement_priority = None
+            use_issue_module = None
+            use_issue_total_di = None
 
         if use_weight <= 0:
             raise ValueError("权重必须大于 0")
@@ -262,3 +296,42 @@ class ProjectService:
         goal.issue_total_di = use_issue_total_di
         self.repo.session.flush()
         return goal
+
+    def _normalize_participants(self, participants: list[tuple[str, str]]) -> list[tuple[str, str]]:
+        if not participants:
+            raise ValueError("至少需要 1 位参与者")
+
+        clean_participants: list[tuple[str, str]] = []
+        seen_emails: set[str] = set()
+        for participant_name, email in participants:
+            clean_name = participant_name.strip()
+            clean_email = email.strip().lower()
+            if not clean_name or not clean_email:
+                raise ValueError("参与者姓名和邮箱不能为空")
+            if clean_email in seen_emails:
+                raise ValueError(f"参与者邮箱重复: {clean_email}")
+            seen_emails.add(clean_email)
+            clean_participants.append((clean_name, clean_email))
+        return clean_participants
+
+    def _sync_project_participants(self, project_id: int, participants: list[tuple[str, str]]) -> None:
+        existing = self.repo.list_project_participants(project_id)
+        existing_by_email = {item.email.lower(): item for item in existing}
+        target_emails = {email for _, email in participants}
+
+        for name, email in participants:
+            participant = existing_by_email.get(email)
+            if participant is None:
+                self.repo.add_participant(project_id=project_id, name=name, email=email)
+                continue
+            participant.name = name
+
+        for participant in existing:
+            email = participant.email.lower()
+            if email in target_emails:
+                continue
+            if self.repo.participant_has_owned_goals(participant.id):
+                raise ValueError(f"参与者无法移除（存在负责人目标）: {participant.name} <{participant.email}>")
+            if self.repo.participant_has_user_account(participant.id):
+                raise ValueError(f"参与者无法移除（已绑定账号）: {participant.name} <{participant.email}>")
+            self.repo.delete_participant(participant.id)
