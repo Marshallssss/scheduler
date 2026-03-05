@@ -16,6 +16,7 @@
         --glass-blur: blur(18px) saturate(160%);
         --brand: #2c7ef6;
         --brand-deep: #4b5eff;
+        --progress-gradient: linear-gradient(90deg, #5e9dff, #5974ff);
         --good: #0f8a52;
         --warn: #b86b00;
         --bad: #c73e3e;
@@ -296,7 +297,7 @@
         overflow: hidden;
       }
 
-      .progress-bar { height: 100%; background: linear-gradient(90deg, #5e9dff, #5974ff); }
+      .progress-bar { height: 100%; background: var(--progress-gradient); }
 
       .chip {
         border-radius: 999px;
@@ -356,34 +357,58 @@
         border-radius: 12px;
         background: rgba(255, 255, 255, 0.36);
         backdrop-filter: var(--glass-blur);
-        padding: 10px;
+        padding: 12px;
       }
 
       .gantt-title {
         margin: 0 0 8px;
-        font-size: 13px;
-        color: #3b5549;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .gantt-scale {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 6px;
+        margin: 0 0 10px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .gantt-scale span {
+        text-align: right;
+        opacity: 0.86;
+      }
+
+      .gantt-scale span:first-child {
+        text-align: left;
       }
 
       .gantt-row {
         display: grid;
-        grid-template-columns: 180px 1fr;
-        gap: 8px;
-        align-items: center;
-        margin-bottom: 8px;
+        grid-template-columns: 220px 1fr;
+        gap: 10px;
+        align-items: start;
+        margin-bottom: 10px;
       }
 
       .gantt-label {
         font-size: 12px;
-        color: #425a4f;
+        color: var(--text);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
       }
 
+      .gantt-label-sub {
+        margin-top: 3px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+
       .gantt-track {
         position: relative;
-        height: 22px;
+        height: 26px;
         border-radius: 999px;
         background: repeating-linear-gradient(
           90deg,
@@ -438,12 +463,22 @@
         );
       }
 
+      body.theme-dark .gantt-bar {
+        background: rgba(120, 151, 214, 0.24);
+        border-color: rgba(141, 174, 242, 0.33);
+      }
+
+      body.theme-dark .gantt-fill {
+        box-shadow: 0 2px 9px rgba(100, 146, 255, 0.45);
+      }
+
       .gantt-bar {
         position: absolute;
-        top: 3px;
-        bottom: 3px;
+        top: 4px;
+        bottom: 4px;
         border-radius: 999px;
-        background: linear-gradient(90deg, #4e95ff, #576dff);
+        background: rgba(136, 170, 233, 0.34);
+        border: 1px solid rgba(120, 157, 224, 0.45);
       }
 
       .gantt-fill {
@@ -452,7 +487,16 @@
         top: 0;
         bottom: 0;
         border-radius: 999px;
-        background: rgba(21, 128, 61, 0.95);
+        background: var(--progress-gradient);
+        box-shadow: 0 2px 8px rgba(88, 129, 255, 0.35);
+      }
+
+      .gantt-bar.risk-yellow {
+        box-shadow: inset 0 0 0 1px rgba(186, 107, 0, 0.3);
+      }
+
+      .gantt-bar.risk-red {
+        box-shadow: inset 0 0 0 1px rgba(199, 62, 62, 0.36);
       }
 
       .gantt-meta {
@@ -480,6 +524,8 @@
         .top { flex-direction: column; align-items: flex-start; }
         .two-col { grid-template-columns: 1fr; }
         .gantt-row { grid-template-columns: 1fr; }
+        .gantt-label { white-space: normal; }
+        .gantt-scale { font-size: 10px; gap: 4px; }
       }
     </style>
   </head>
@@ -1172,25 +1218,6 @@
         return "bad";
       }
 
-      function ganttColorsByRiskClass(riskClass) {
-        if (riskClass === "risk-red") {
-          return {
-            bar: "linear-gradient(90deg, #b91c1c, #ef4444)",
-            fill: "rgba(153, 27, 27, 0.92)",
-          };
-        }
-        if (riskClass === "risk-yellow") {
-          return {
-            bar: "linear-gradient(90deg, #b45309, #f59e0b)",
-            fill: "rgba(180, 83, 9, 0.9)",
-          };
-        }
-        return {
-          bar: "linear-gradient(90deg, #0f766e, #16a34a)",
-          fill: "rgba(21, 128, 61, 0.95)",
-        };
-      }
-
       function toDateNumber(iso) {
         return new Date(`${iso}T00:00:00`).getTime();
       }
@@ -1215,6 +1242,13 @@
         const minStart = Math.min(...starts);
         const maxEnd = Math.max(...ends);
         const totalDays = Math.max(1, Math.floor((maxEnd - minStart) / 86400000) + 1);
+        const scaleHtml = [0, 0.25, 0.5, 0.75, 1]
+          .map((ratio) => {
+            const offsetDays = Math.round((totalDays - 1) * ratio);
+            const tick = new Date(minStart + offsetDays * 86400000).toISOString().slice(0, 10);
+            return `<span>${tick}</span>`;
+          })
+          .join("");
 
         const rows = goals
           .sort((a, b) => {
@@ -1230,7 +1264,6 @@
             const fill = Math.max(0, Math.min(100, Number(goal.progress_percent || 0)));
             const riskClass = goalRiskClass(goal);
             const riskLabel = goalRiskLabel(goal);
-            const riskColors = ganttColorsByRiskClass(riskClass);
             const noteText = goal.note ? ` | 备注：${goal.note}` : "";
             const progressText = goal.goal_type === "issue"
               ? `${fill.toFixed(2)}% | 剩余DI:${Number(goal.remaining_di ?? goal.issue_total_di ?? 0).toFixed(2)}`
@@ -1239,21 +1272,24 @@
                 : `${fill.toFixed(2)}% | 需求:${Number(goal.requirement_done_count ?? 0)}/${Number(goal.requirement_total_count ?? 0)}`;
 
             return `<div class="gantt-row">
-              <div class="gantt-label" title="${escapeHtml(goal.phaseName)} / ${escapeHtml(goal.title)}${escapeHtml(noteText)}">${escapeHtml(goal.phaseName)} / ${escapeHtml(goal.title)}</div>
+              <div class="gantt-label" title="${escapeHtml(goal.phaseName)} / ${escapeHtml(goal.title)}${escapeHtml(noteText)}">
+                <div>${escapeHtml(goal.phaseName)} / ${escapeHtml(goal.title)}</div>
+                <div class="gantt-label-sub">${escapeHtml(goal.milestone_date)} ~ ${escapeHtml(goal.deadline)}</div>
+              </div>
               <div>
                 <div class="gantt-track">
-                  <div class="gantt-bar ${riskClass}" style="left:${left}%; width:${Math.max(1, width)}%; background:${riskColors.bar};">
-                    <div class="gantt-fill ${riskClass}" style="width:${fill}%; background:${riskColors.fill};"></div>
+                  <div class="gantt-bar ${riskClass}" style="left:${left}%; width:${Math.max(1, width)}%;">
+                    <div class="gantt-fill" style="width:${fill}%;"></div>
                   </div>
                 </div>
-                <div class="gantt-meta">${escapeHtml(goal.milestone_date)} ~ ${escapeHtml(goal.deadline)} | 负责人：${escapeHtml(goal.owner_name)} | 进度：${escapeHtml(progressText)} | ${escapeHtml(riskLabel)}</div>
+                <div class="gantt-meta">负责人：${escapeHtml(goal.owner_name)} | 进度：${escapeHtml(progressText)} | <span class="chip ${riskClass}">${escapeHtml(riskLabel)}</span></div>
               </div>
             </div>`;
           })
           .join("");
 
         const range = `${new Date(minStart).toISOString().slice(0, 10)} ~ ${new Date(maxEnd).toISOString().slice(0, 10)}`;
-        return `<div class="gantt"><p class="gantt-title">甘特图范围：${range}</p>${rows}</div>`;
+        return `<div class="gantt"><p class="gantt-title">甘特图范围：${range}</p><div class="gantt-scale">${scaleHtml}</div>${rows}</div>`;
       }
 
       function renderUserList() {
