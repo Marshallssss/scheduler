@@ -216,8 +216,9 @@
       .goal { grid-column: span 4; }
       .phase-edit { grid-column: span 6; }
       .goal-edit { grid-column: span 6; }
-      .progress { grid-column: span 12; }
-      .dashboard { grid-column: span 12; }
+      .progress { grid-column: span 4; }
+      .dashboard { grid-column: span 8; }
+      .progress .two-col { grid-template-columns: 1fr; }
       .ops { grid-column: span 12; }
 
       .hidden { display: none !important; }
@@ -463,11 +464,6 @@
         );
       }
 
-      body.theme-dark .gantt-bar {
-        background: rgba(120, 151, 214, 0.24);
-        border-color: rgba(141, 174, 242, 0.33);
-      }
-
       body.theme-dark .gantt-fill {
         box-shadow: 0 2px 9px rgba(100, 146, 255, 0.45);
       }
@@ -477,8 +473,8 @@
         top: 4px;
         bottom: 4px;
         border-radius: 999px;
-        background: rgba(136, 170, 233, 0.34);
-        border: 1px solid rgba(120, 157, 224, 0.45);
+        background: transparent;
+        border: 0;
       }
 
       .gantt-fill {
@@ -489,14 +485,6 @@
         border-radius: 999px;
         background: var(--progress-gradient);
         box-shadow: 0 2px 8px rgba(88, 129, 255, 0.35);
-      }
-
-      .gantt-bar.risk-yellow {
-        box-shadow: inset 0 0 0 1px rgba(186, 107, 0, 0.3);
-      }
-
-      .gantt-bar.risk-red {
-        box-shadow: inset 0 0 0 1px rgba(199, 62, 62, 0.36);
       }
 
       .gantt-meta {
@@ -517,7 +505,7 @@
       }
 
       @media (max-width: 1160px) {
-        .admin-users, .project, .project-edit, .phase, .goal, .phase-edit, .goal-edit { grid-column: span 12; }
+        .admin-users, .project, .project-edit, .phase, .goal, .phase-edit, .goal-edit, .dashboard, .progress { grid-column: span 12; }
       }
 
       @media (max-width: 760px) {
@@ -590,7 +578,7 @@
 
         <section class="tab-page hidden" id="dashboardTabPage">
           <section class="panel dashboard hidden" id="dashboardPanel">
-            <h2>实时项目看板 + 甘特图</h2>
+            <h2>实时项目看板</h2>
             <div id="dashboard" class="project-grid"></div>
           </section>
 
