@@ -517,8 +517,10 @@ def test_report_preview_dispatch_preferences_and_send_now(settings):
     assert isinstance(preview["markdown"], str) and preview["markdown"]
     assert "目标明细（汇总）" in preview["markdown"]
     assert "风险项目" in preview["markdown"]
-    assert "<span style=\"color:#c62828;font-weight:700;\">30.00%</span>" in preview["markdown"]
-    assert "进度落后；供应商联调延迟" in preview["markdown"]
+    assert "| 项目 | 阶段 | 目标 | 负责人 | 完成率 | 进度状态 | 权重 | 里程碑 | 截止日期 | 风险项目 |" in preview["markdown"]
+    assert "**30.00%**" in preview["markdown"]
+    assert "进度delay；供应商联调延迟" in preview["markdown"]
+    assert "<span style=" not in preview["markdown"]
 
     update_pref = client.put(
         "/api/report-dispatch/preferences/daily",

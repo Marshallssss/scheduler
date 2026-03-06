@@ -6,14 +6,14 @@
     <title>项目排程与进度管理</title>
     <style>
       :root {
-        --bg: #e9f0fb;
-        --panel: rgba(255, 255, 255, 0.55);
-        --panel-soft: rgba(255, 255, 255, 0.42);
+        --bg: #c9dcf8;
+        --panel: rgba(255, 255, 255, 0.36);
+        --panel-soft: rgba(255, 255, 255, 0.24);
         --text: #10243d;
         --muted: #4c627f;
-        --line: rgba(255, 255, 255, 0.68);
-        --shadow: 0 20px 44px rgba(14, 35, 65, 0.15);
-        --glass-blur: blur(18px) saturate(160%);
+        --line: rgba(220, 235, 255, 0.72);
+        --shadow: 0 22px 48px rgba(10, 36, 73, 0.2);
+        --glass-blur: blur(24px) saturate(188%);
         --brand: #2c7ef6;
         --brand-deep: #4b5eff;
         --progress-gradient: linear-gradient(90deg, #5e9dff, #5974ff);
@@ -27,12 +27,13 @@
       body {
         margin: 0;
         font-family: "SF Pro Text", "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Helvetica Neue", Arial, sans-serif;
-        font-size: 16px;
+        font-size: 18px;
+        line-height: 1.52;
         background:
-          radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0) 44%),
-          radial-gradient(circle at 84% 4%, rgba(123, 186, 255, 0.42) 0%, rgba(123, 186, 255, 0) 38%),
-          radial-gradient(circle at 88% 90%, rgba(146, 204, 255, 0.32) 0%, rgba(146, 204, 255, 0) 44%),
-          linear-gradient(135deg, #ebf4ff 0%, #dce8ff 48%, #eaf1ff 100%),
+          radial-gradient(circle at 10% 16%, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0) 42%),
+          radial-gradient(circle at 82% 2%, rgba(72, 146, 244, 0.56) 0%, rgba(72, 146, 244, 0) 42%),
+          radial-gradient(circle at 88% 92%, rgba(79, 168, 255, 0.48) 0%, rgba(79, 168, 255, 0) 46%),
+          linear-gradient(135deg, #d7e8ff 0%, #bfd8ff 44%, #d3e4ff 100%),
           var(--bg);
         color: var(--text);
         transition: background 0.35s ease, color 0.35s ease;
@@ -41,8 +42,8 @@
 
       body.theme-dark {
         --bg: #0f1725;
-        --panel: rgba(19, 31, 51, 0.56);
-        --panel-soft: rgba(19, 31, 51, 0.4);
+        --panel: rgba(18, 32, 56, 0.44);
+        --panel-soft: rgba(18, 32, 56, 0.28);
         --text: #edf3ff;
         --muted: #b2c2dd;
         --line: rgba(162, 189, 228, 0.26);
@@ -53,17 +54,17 @@
         --warn: #ffb24d;
         --bad: #ff7f8e;
         background:
-          radial-gradient(circle at 15% 12%, rgba(120, 166, 255, 0.24) 0%, rgba(120, 166, 255, 0) 42%),
-          radial-gradient(circle at 92% 8%, rgba(109, 214, 255, 0.22) 0%, rgba(109, 214, 255, 0) 37%),
-          radial-gradient(circle at 78% 88%, rgba(111, 140, 255, 0.21) 0%, rgba(111, 140, 255, 0) 40%),
-          linear-gradient(135deg, #0b1220 0%, #111d33 45%, #0d1a2d 100%),
+          radial-gradient(circle at 12% 10%, rgba(89, 142, 241, 0.36) 0%, rgba(89, 142, 241, 0) 43%),
+          radial-gradient(circle at 92% 6%, rgba(70, 175, 244, 0.32) 0%, rgba(70, 175, 244, 0) 40%),
+          radial-gradient(circle at 80% 90%, rgba(80, 116, 235, 0.33) 0%, rgba(80, 116, 235, 0) 44%),
+          linear-gradient(135deg, #0a1323 0%, #11223d 44%, #0d1a31 100%),
           var(--bg);
       }
 
       .container {
         max-width: 2380px;
         margin: 0 auto;
-        padding: 20px 20px 44px;
+        padding: 20px 28px 44px 20px;
       }
 
       .top {
@@ -76,13 +77,13 @@
 
       .title {
         margin: 0;
-        font-size: 30px;
+        font-size: 32px;
       }
 
       .subtitle {
         margin: 5px 0 0;
         color: var(--muted);
-        font-size: 15px;
+        font-size: 17px;
       }
 
       .auth-bar {
@@ -92,18 +93,18 @@
       }
 
       .badge {
-        border: 1px solid var(--line);
+        border: none;
         background: var(--panel-soft);
         backdrop-filter: var(--glass-blur);
         border-radius: 999px;
-        font-size: 13px;
+        font-size: 15px;
         color: var(--text);
         padding: 6px 12px;
       }
 
       .status {
         min-height: 36px;
-        border: 1px solid var(--line);
+        border: none;
         background: var(--panel-soft);
         backdrop-filter: var(--glass-blur);
         color: var(--text);
@@ -111,18 +112,18 @@
         padding: 0 13px;
         display: inline-flex;
         align-items: center;
-        font-size: 14px;
+        font-size: 16px;
       }
 
-      .status.ok { color: var(--good); border-color: rgba(104, 205, 150, 0.5); background: rgba(236, 255, 246, 0.62); }
-      .status.warn { color: var(--warn); border-color: rgba(255, 195, 121, 0.5); background: rgba(255, 245, 229, 0.66); }
-      .status.error { color: var(--bad); border-color: rgba(255, 146, 146, 0.5); background: rgba(255, 237, 239, 0.66); }
+      .status.ok { color: var(--good); background: rgba(236, 255, 246, 0.62); }
+      .status.warn { color: var(--warn); background: rgba(255, 245, 229, 0.66); }
+      .status.error { color: var(--bad); background: rgba(255, 237, 239, 0.66); }
 
       button {
-        border: 1px solid transparent;
+        border: none;
         border-radius: 12px;
         cursor: pointer;
-        font-size: 14px;
+        font-size: 16px;
         font-weight: 600;
         padding: 9px 13px;
         backdrop-filter: var(--glass-blur);
@@ -135,57 +136,48 @@
 
       .btn-primary {
         color: #fff;
-        border-color: rgba(255, 255, 255, 0.35);
         background: linear-gradient(140deg, rgba(57, 136, 255, 0.9), rgba(78, 107, 255, 0.86));
         box-shadow: 0 10px 22px rgba(50, 107, 235, 0.3);
       }
 
       .btn-secondary {
         color: var(--text);
-        border-color: var(--line);
         background: var(--panel-soft);
       }
 
       .btn-danger {
         color: #fff;
-        border-color: rgba(255, 199, 199, 0.3);
         background: linear-gradient(140deg, rgba(233, 92, 92, 0.92), rgba(199, 62, 62, 0.9));
       }
 
       body.theme-dark .badge {
-        border-color: var(--line);
         background: var(--panel-soft);
         color: var(--text);
       }
 
       body.theme-dark .status {
-        border-color: var(--line);
         background: var(--panel-soft);
         color: var(--text);
       }
 
       body.theme-dark .status.ok {
         color: #87f0b8;
-        border-color: rgba(108, 212, 158, 0.34);
         background: rgba(18, 55, 37, 0.56);
       }
 
       body.theme-dark .status.warn {
         color: #ffd28f;
-        border-color: rgba(228, 173, 91, 0.34);
         background: rgba(64, 46, 18, 0.56);
       }
 
       body.theme-dark .status.error {
         color: #ffb2bd;
-        border-color: rgba(231, 124, 142, 0.34);
         background: rgba(66, 27, 38, 0.56);
       }
 
       body.theme-dark .btn-secondary {
         color: var(--text);
         background: var(--panel-soft);
-        border-color: var(--line);
       }
 
       .layout {
@@ -200,12 +192,12 @@
         border-radius: 20px;
         backdrop-filter: var(--glass-blur);
         box-shadow: var(--shadow);
-        padding: 16px;
+        padding: 16px 20px 16px 16px;
         animation: glassIn 0.35s ease both;
       }
 
-      .panel h2 { margin: 0 0 10px; font-size: 18px; }
-      .panel h3 { margin: 0; font-size: 16px; }
+      .panel h2 { margin: 0 0 10px; font-size: 20px; }
+      .panel h3 { margin: 0; font-size: 18px; }
 
       .auth-panel { grid-column: span 12; }
       .main-tabs { grid-column: span 12; }
@@ -249,14 +241,14 @@
       }
 
       .field { display: grid; gap: 5px; margin-bottom: 10px; }
-      .field label { font-size: 13px; color: var(--muted); }
+      .field label { font-size: 15px; color: var(--muted); }
 
       input, select, textarea {
         width: 100%;
         border: 1px solid var(--line);
         border-radius: 12px;
         padding: 9px 10px;
-        font-size: 15px;
+        font-size: 17px;
         color: var(--text);
         background: var(--panel-soft);
         backdrop-filter: var(--glass-blur);
@@ -269,42 +261,50 @@
 
       .hint {
         margin: 2px 0 10px;
-        font-size: 13px;
+        font-size: 15px;
         color: var(--muted);
       }
 
       .project-grid { display: grid; gap: 18px; }
 
       .project-card {
-        border: 1px solid var(--line);
+        border: 1px solid rgba(167, 199, 242, 0.82);
         border-radius: 22px;
-        background: rgba(255, 255, 255, 0.42);
-        backdrop-filter: var(--glass-blur);
-        padding: 16px;
+        background: transparent;
+        backdrop-filter: none;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32);
+        padding: 16px 20px 16px 16px;
         animation: glassIn 0.42s ease both;
       }
 
       .project-shell {
-        margin-top: 12px;
+        margin-top: 14px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(160, 195, 240, 0.6);
         display: grid;
         grid-template-columns: minmax(0, 1fr) 340px;
-        gap: 14px;
+        gap: 16px;
         align-items: start;
       }
 
-      .project-main-col { min-width: 0; }
+      .project-main-col {
+        min-width: 0;
+        display: grid;
+        gap: 14px;
+      }
 
       .project-update {
-        border: 1px solid var(--line);
+        border: none;
         border-radius: 16px;
-        background: rgba(255, 255, 255, 0.38);
+        background: rgba(226, 239, 255, 0.2);
         backdrop-filter: var(--glass-blur);
-        padding: 12px;
+        box-shadow: 0 14px 28px rgba(34, 80, 143, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+        padding: 12px 15px 12px 12px;
       }
 
       .project-update h4 {
         margin: 0 0 8px;
-        font-size: 15px;
+        font-size: 16px;
       }
 
       .project-update .field {
@@ -312,7 +312,7 @@
       }
 
       .project-update .field label {
-        font-size: 12px;
+        font-size: 13px;
       }
 
       .project-update .two-col {
@@ -328,28 +328,51 @@
       }
 
       .project-head {
-        display: flex;
-        justify-content: space-between;
-        gap: 12px;
-        align-items: flex-start;
+        display: grid;
+        gap: 6px;
       }
 
-      .project-name { margin: 0; font-size: 18px; }
-      .meta { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+      .title-line {
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .project-name { margin: 0; font-size: 21px; }
+      .meta { margin: 2px 0 0; color: var(--muted); font-size: 15px; }
 
       .progress-wrap {
         margin-top: 8px;
-        height: 11px;
+        margin-right: 14px;
+        height: 18px;
         border-radius: 999px;
-        background: rgba(200, 219, 245, 0.7);
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.44) 0%, rgba(255, 255, 255, 0.12) 42%, rgba(176, 207, 246, 0.2) 100%),
+          linear-gradient(90deg, rgba(210, 229, 255, 0.34), rgba(186, 214, 252, 0.24));
+        backdrop-filter: blur(10px) saturate(165%);
+        -webkit-backdrop-filter: blur(10px) saturate(165%);
+        box-shadow:
+          0 16px 32px -18px rgba(62, 104, 168, 0.3),
+          0 8px 16px -10px rgba(107, 145, 198, 0.22),
+          inset 0 1px 0 rgba(255, 255, 255, 0.5),
+          inset 0 -1px 0 rgba(132, 168, 223, 0.24);
         overflow: hidden;
       }
 
-      .progress-bar { height: 100%; background: var(--progress-gradient); }
+      .progress-bar {
+        height: 100%;
+        border-radius: 999px;
+        background-image:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.06)),
+          var(--progress-gradient);
+        opacity: 0.98;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      }
 
       .chip {
         border-radius: 999px;
-        font-size: 12px;
+        font-size: 14px;
         font-weight: 700;
         padding: 2px 9px;
         display: inline-flex;
@@ -374,7 +397,7 @@
       }
 
       .progress-text {
-        font-size: 12px;
+        font-size: 14px;
         font-weight: 600;
       }
 
@@ -382,24 +405,25 @@
       .progress-text.state-delayed { color: #a22938; font-weight: 700; }
       .progress-text.state-ahead { color: #0e7a4b; }
 
-      .phase-grid { display: grid; gap: 10px; margin-top: 10px; }
+      .phase-grid { display: grid; gap: 12px; margin-top: 0; }
       .phase-card {
-        border: 1px solid var(--line);
+        border: none;
         border-radius: 14px;
-        background: rgba(255, 255, 255, 0.36);
+        background: rgba(226, 239, 255, 0.2);
         backdrop-filter: var(--glass-blur);
-        padding: 10px;
+        box-shadow: 0 12px 24px rgba(34, 80, 143, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.26);
+        padding: 10px 14px 10px 10px;
       }
 
       .phase-head {
         display: flex;
-        justify-content: space-between;
-        align-items: baseline;
+        align-items: center;
+        gap: 6px;
       }
 
-      .phase-objective { margin: 4px 0 8px; font-size: 13px; color: var(--muted); }
+      .phase-objective { margin: 4px 0 8px; font-size: 15px; color: var(--muted); }
 
-      table { width: 100%; border-collapse: collapse; font-size: 12px; }
+      table { width: 100%; border-collapse: collapse; font-size: 14px; }
       th, td {
         text-align: left;
         padding: 6px 5px;
@@ -419,17 +443,23 @@
       }
 
       .gantt {
-        margin-top: 10px;
-        border: 1px solid var(--line);
+        margin-top: 0;
+        border: none;
         border-radius: 12px;
-        background: rgba(255, 255, 255, 0.36);
+        background: rgba(228, 241, 255, 0.16);
         backdrop-filter: var(--glass-blur);
-        padding: 12px;
+        box-shadow:
+          0 20px 38px rgba(28, 74, 138, 0.2),
+          0 8px 18px rgba(52, 104, 175, 0.14),
+          inset 0 0 0 1px rgba(195, 220, 255, 0.55),
+          inset 0 1px 0 rgba(255, 255, 255, 0.34),
+          inset 0 -1px 0 rgba(171, 201, 245, 0.28);
+        padding: 12px 16px 12px 12px;
       }
 
       .gantt-title {
         margin: 0 0 8px;
-        font-size: 12px;
+        font-size: 14px;
         color: var(--muted);
       }
 
@@ -439,7 +469,7 @@
         gap: 6px;
         margin: 0 0 10px;
         color: var(--muted);
-        font-size: 11px;
+        font-size: 13px;
       }
 
       .gantt-scale span {
@@ -460,50 +490,110 @@
       }
 
       .gantt-label {
-        font-size: 12px;
+        font-size: 14px;
         color: var(--text);
+      }
+
+      .gantt-label-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .gantt-label-stage {
+        flex: 1;
+        min-width: 0;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        font-size: 15px;
+        color: var(--text);
+        font-weight: 700;
       }
 
-      .gantt-label-sub {
+      .gantt-state-chip {
+        flex-shrink: 0;
+        font-size: 12px;
+        min-width: 62px;
+        padding: 1px 10px;
+        justify-content: center;
+        border: 1px solid transparent;
+      }
+
+      .gantt-state-chip.state-normal {
+        color: #115ab2;
+        background: rgba(205, 226, 255, 0.9);
+        border-color: rgba(120, 166, 236, 0.5);
+      }
+
+      .gantt-state-chip.state-delayed {
+        color: #a22938;
+        background: rgba(255, 214, 220, 0.9);
+        border-color: rgba(221, 127, 148, 0.45);
+      }
+
+      .gantt-state-chip.state-ahead {
+        color: #0e7a4b;
+        background: rgba(201, 243, 224, 0.9);
+        border-color: rgba(94, 188, 146, 0.45);
+      }
+
+      .gantt-label-goal {
         margin-top: 3px;
-        font-size: 11px;
+        font-size: 14px;
         color: var(--muted);
+        line-height: 1.32;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
       }
 
       .gantt-track {
         position: relative;
+        margin-right: 14px;
         height: 26px;
         border-radius: 999px;
-        background: repeating-linear-gradient(
-          90deg,
-          rgba(202, 217, 242, 0.7),
-          rgba(202, 217, 242, 0.7) 10%,
-          rgba(221, 232, 250, 0.7) 10%,
-          rgba(221, 232, 250, 0.7) 20%
-        );
+        background: transparent;
         overflow: hidden;
       }
 
       body.theme-dark .project-card {
-        border-color: var(--line);
-        background: rgba(17, 31, 53, 0.5);
+        border-color: rgba(110, 148, 207, 0.46);
+        background: transparent;
+        box-shadow: inset 0 1px 0 rgba(150, 191, 255, 0.16);
+      }
+
+      body.theme-dark .project-shell {
+        border-top-color: rgba(96, 134, 190, 0.42);
       }
 
       body.theme-dark .phase-card {
-        border-color: var(--line);
-        background: rgba(17, 31, 53, 0.46);
+        border: none;
+        background: rgba(15, 30, 53, 0.34);
+        box-shadow: 0 14px 26px rgba(4, 10, 22, 0.45), inset 0 1px 0 rgba(130, 173, 244, 0.18);
       }
 
       body.theme-dark .project-update {
-        border-color: var(--line);
-        background: rgba(17, 31, 53, 0.46);
+        border: none;
+        background: rgba(15, 30, 53, 0.34);
+        box-shadow: 0 14px 26px rgba(4, 10, 22, 0.45), inset 0 1px 0 rgba(130, 173, 244, 0.18);
       }
 
       body.theme-dark .progress-wrap {
-        background: rgba(78, 109, 164, 0.38);
+        background:
+          linear-gradient(180deg, rgba(126, 166, 230, 0.2) 0%, rgba(70, 108, 170, 0.08) 44%, rgba(48, 76, 122, 0.2) 100%),
+          linear-gradient(90deg, rgba(56, 84, 126, 0.4), rgba(44, 68, 104, 0.3));
+        box-shadow:
+          0 16px 32px -18px rgba(10, 18, 33, 0.72),
+          0 8px 16px -10px rgba(20, 40, 74, 0.58),
+          inset 0 1px 0 rgba(176, 204, 247, 0.2),
+          inset 0 -1px 0 rgba(39, 62, 98, 0.26);
+      }
+
+      body.theme-dark .progress-bar {
+        opacity: 0.92;
+        box-shadow: inset 0 1px 0 rgba(214, 231, 255, 0.16);
       }
 
       body.theme-dark th,
@@ -521,22 +611,59 @@
       }
 
       body.theme-dark .gantt {
-        border-color: var(--line);
-        background: rgba(17, 31, 53, 0.44);
+        border: none;
+        background: rgba(15, 30, 53, 0.3);
+        box-shadow:
+          0 22px 42px rgba(2, 8, 20, 0.56),
+          0 10px 20px rgba(13, 28, 56, 0.42),
+          inset 0 0 0 1px rgba(103, 143, 205, 0.42),
+          inset 0 1px 0 rgba(130, 173, 244, 0.22),
+          inset 0 -1px 0 rgba(73, 104, 156, 0.28);
       }
 
       body.theme-dark .gantt-track {
-        background: repeating-linear-gradient(
-          90deg,
-          rgba(54, 78, 117, 0.62),
-          rgba(54, 78, 117, 0.62) 10%,
-          rgba(48, 70, 106, 0.62) 10%,
-          rgba(48, 70, 106, 0.62) 20%
-        );
+        background: transparent;
       }
 
       body.theme-dark .gantt-fill {
-        box-shadow: 0 2px 9px rgba(100, 146, 255, 0.45);
+        box-shadow: inset 0 1px 0 rgba(214, 231, 255, 0.14);
+        opacity: 0.88;
+      }
+
+      body.theme-dark .gantt-bar {
+        background:
+          linear-gradient(180deg, rgba(126, 166, 230, 0.2) 0%, rgba(70, 108, 170, 0.08) 44%, rgba(48, 76, 122, 0.2) 100%),
+          linear-gradient(90deg, rgba(56, 84, 126, 0.4), rgba(44, 68, 104, 0.3));
+        backdrop-filter: blur(10px) saturate(170%);
+        -webkit-backdrop-filter: blur(10px) saturate(170%);
+        box-shadow:
+          0 22px 44px -22px rgba(10, 18, 33, 0.72),
+          0 10px 22px -12px rgba(20, 40, 74, 0.58),
+          inset 0 1px 0 rgba(176, 204, 247, 0.2),
+          inset 0 -1px 0 rgba(39, 62, 98, 0.26);
+      }
+
+      body.theme-dark .gantt-bar.state-normal,
+      body.theme-dark .gantt-bar.state-ahead {
+        background:
+          linear-gradient(180deg, rgba(131, 170, 232, 0.26) 0%, rgba(84, 124, 194, 0.1) 44%, rgba(61, 92, 146, 0.22) 100%),
+          linear-gradient(90deg, rgba(74, 111, 176, 0.45), rgba(52, 81, 134, 0.34));
+        box-shadow:
+          0 22px 44px -22px rgba(12, 28, 56, 0.7),
+          0 10px 22px -12px rgba(24, 47, 86, 0.56),
+          inset 0 1px 0 rgba(190, 214, 248, 0.22),
+          inset 0 -1px 0 rgba(41, 66, 108, 0.3);
+      }
+
+      body.theme-dark .gantt-bar.state-delayed {
+        background:
+          linear-gradient(180deg, rgba(166, 118, 138, 0.18) 0%, rgba(116, 75, 95, 0.08) 44%, rgba(95, 62, 81, 0.18) 100%),
+          linear-gradient(90deg, rgba(128, 86, 106, 0.32), rgba(95, 63, 82, 0.24));
+        box-shadow:
+          0 22px 44px -22px rgba(35, 18, 25, 0.65),
+          0 10px 22px -12px rgba(62, 33, 44, 0.48),
+          inset 0 1px 0 rgba(238, 198, 211, 0.2),
+          inset 0 -1px 0 rgba(81, 51, 65, 0.3);
       }
 
       .gantt-bar {
@@ -544,8 +671,48 @@
         top: 4px;
         bottom: 4px;
         border-radius: 999px;
-        background: transparent;
-        border: 0;
+        overflow: hidden;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.44) 0%, rgba(255, 255, 255, 0.12) 42%, rgba(176, 207, 246, 0.2) 100%),
+          linear-gradient(90deg, rgba(210, 229, 255, 0.34), rgba(186, 214, 252, 0.24));
+        backdrop-filter: blur(10px) saturate(165%);
+        -webkit-backdrop-filter: blur(10px) saturate(165%);
+        box-shadow:
+          0 22px 44px -22px rgba(62, 104, 168, 0.34),
+          0 10px 22px -12px rgba(107, 145, 198, 0.26),
+          inset 0 1px 0 rgba(255, 255, 255, 0.5),
+          inset 0 -1px 0 rgba(132, 168, 223, 0.24);
+      }
+
+      .gantt-bar.state-normal,
+      .gantt-bar.state-ahead {
+        background:
+          linear-gradient(180deg, rgba(217, 233, 255, 0.5) 0%, rgba(195, 219, 250, 0.18) 42%, rgba(168, 199, 242, 0.28) 100%),
+          linear-gradient(90deg, rgba(198, 222, 255, 0.42), rgba(173, 206, 248, 0.3));
+        box-shadow:
+          0 22px 44px -22px rgba(76, 118, 184, 0.3),
+          0 10px 22px -12px rgba(110, 150, 208, 0.22),
+          inset 0 1px 0 rgba(255, 255, 255, 0.52),
+          inset 0 -1px 0 rgba(120, 158, 218, 0.26);
+      }
+
+      .gantt-bar.state-delayed {
+        background:
+          linear-gradient(180deg, rgba(255, 223, 230, 0.44) 0%, rgba(255, 210, 221, 0.14) 42%, rgba(240, 186, 200, 0.2) 100%),
+          linear-gradient(90deg, rgba(249, 218, 227, 0.34), rgba(238, 196, 208, 0.24));
+        box-shadow:
+          0 22px 44px -22px rgba(146, 88, 105, 0.24),
+          0 10px 22px -12px rgba(174, 111, 131, 0.18),
+          inset 0 1px 0 rgba(255, 242, 246, 0.5),
+          inset 0 -1px 0 rgba(196, 136, 154, 0.2);
+      }
+
+      .gantt-bar::before {
+        content: none;
+      }
+
+      .gantt-bar::after {
+        content: none;
       }
 
       .gantt-fill {
@@ -554,26 +721,14 @@
         top: 0;
         bottom: 0;
         border-radius: 999px;
-        background: var(--progress-gradient);
-        box-shadow: 0 2px 8px rgba(88, 129, 255, 0.35);
-      }
-
-      .gantt-fill.state-normal {
-        background: linear-gradient(90deg, #69a8ff, #4b7cf8);
-      }
-
-      .gantt-fill.state-delayed {
-        background: linear-gradient(90deg, #ff8e9e, #ea5568);
-      }
-
-      .gantt-fill.state-ahead {
-        background: linear-gradient(90deg, #6fd8a6, #2fb877);
-      }
-
-      .gantt-meta {
-        margin-top: 4px;
-        color: var(--muted);
-        font-size: 12px;
+        background-image:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.06)),
+          var(--progress-gradient);
+        backdrop-filter: blur(1px) saturate(132%);
+        -webkit-backdrop-filter: blur(1px) saturate(132%);
+        z-index: 1;
+        opacity: 0.92;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
       }
 
       .check-line {
@@ -608,8 +763,10 @@
         .two-col { grid-template-columns: 1fr; }
         .project-shell { grid-template-columns: 1fr; }
         .gantt-row { grid-template-columns: 1fr; }
-        .gantt-label { white-space: normal; }
-        .gantt-scale { font-size: 10px; gap: 4px; }
+        .gantt-label-stage { white-space: normal; }
+        .gantt-scale { font-size: 11px; gap: 4px; }
+        .progress-wrap,
+        .gantt-track { margin-right: 8px; }
       }
     </style>
   </head>
@@ -1224,6 +1381,10 @@
         dom.statusBar.className = `status ${kind}`;
       }
 
+      function showProgressErrorDialog(message) {
+        window.alert(`更新进度失败：${message}`);
+      }
+
       function resolveInitialTheme() {
         if (state.theme === "dark" || state.theme === "light") {
           return state.theme;
@@ -1401,7 +1562,7 @@
 
       function progressStateLabel(value) {
         const state = normalizeProgressState(value);
-        if (state === "delayed") return "落后";
+        if (state === "delayed") return "delay";
         if (state === "ahead") return "提前";
         return "正常";
       }
@@ -1483,28 +1644,23 @@
             const fill = Math.max(0, Math.min(100, Number(goal.progress_percent || 0)));
             const stateClass = progressStateClass(goal.progress_state);
             const stateLabel = progressStateLabel(goal.progress_state);
-            const riskClass = goalRiskClass(goal);
-            const riskLabel = goalRiskLabel(goal);
             const noteText = goal.note ? ` | 备注：${goal.note}` : "";
             const riskText = goal.risk_note ? ` | 风险补充：${goal.risk_note}` : "";
-            const progressText = goal.goal_type === "issue"
-              ? `${fill.toFixed(2)}% | 剩余DI:${Number(goal.remaining_di ?? goal.issue_total_di ?? 0).toFixed(2)}`
-              : goal.goal_type === "task"
-                ? `${fill.toFixed(2)}% | 手动`
-                : `${fill.toFixed(2)}% | 需求:${Number(goal.requirement_done_count ?? 0)}/${Number(goal.requirement_total_count ?? 0)}`;
 
             return `<div class="gantt-row">
               <div class="gantt-label" title="${escapeHtml(goal.phaseName)} / ${escapeHtml(goal.title)}${escapeHtml(noteText)}${escapeHtml(riskText)}">
-                <div>${escapeHtml(goal.phaseName)} / ${escapeHtml(goal.title)}</div>
-                <div class="gantt-label-sub">${escapeHtml(goal.milestone_date)} ~ ${escapeHtml(goal.deadline)}</div>
+                <div class="gantt-label-head">
+                  <div class="gantt-label-stage">${escapeHtml(goal.title)}</div>
+                  <span class="chip ${stateClass} gantt-state-chip">${escapeHtml(stateLabel)}</span>
+                </div>
+                <div class="gantt-label-goal">${escapeHtml(goal.phaseName)}</div>
               </div>
               <div>
                 <div class="gantt-track">
-                  <div class="gantt-bar" style="left:${left}%; width:${Math.max(1, width)}%;">
-                    <div class="gantt-fill ${stateClass}" style="width:${fill}%;"></div>
+                  <div class="gantt-bar ${stateClass}" style="left:${left}%; width:${Math.max(1, width)}%;">
+                    <div class="gantt-fill" style="width:${fill}%;"></div>
                   </div>
                 </div>
-                <div class="gantt-meta">负责人：${escapeHtml(goal.owner_name)} | 进度：${escapeHtml(progressText)} | 状态：<span class="chip ${stateClass}">${escapeHtml(stateLabel)}</span> | <span class="chip ${riskClass}">${escapeHtml(riskLabel)}</span></div>
               </div>
             </div>`;
           })
@@ -1591,7 +1747,7 @@
               <label>项目进度状态</label>
               <select name="progress_state" required>
                 <option value="normal">正常（蓝）</option>
-                <option value="delayed">落后（红）</option>
+                <option value="delayed">delay（红）</option>
                 <option value="ahead">提前（绿）</option>
               </select>
             </div>
@@ -1717,7 +1873,7 @@
                   : '<tr><td colspan="7">暂无目标</td></tr>';
 
                 return `<div class="phase-card">
-                  <div class="phase-head">
+                  <div class="phase-head title-line">
                     <h3>${escapeHtml(phase.name)}</h3>
                     <span class="chip ${chipClass(phaseProgress)}">${phaseProgress.toFixed(2)}%</span>
                   </div>
@@ -1734,11 +1890,11 @@
 
             return `<article class="project-card">
               <div class="project-head">
-                <div>
+                <div class="title-line">
                   <h3 class="project-name">#${project.id} ${escapeHtml(project.name)}</h3>
-                  <p class="meta">截止：${escapeHtml(project.deadline)} | 状态：${escapeHtml(project.status)} | 参与者：${project.participants.length}</p>
+                  <span class="chip ${chipClass(projectProgress)}">${projectProgress.toFixed(2)}%</span>
                 </div>
-                <span class="chip ${chipClass(projectProgress)}">${projectProgress.toFixed(2)}%</span>
+                <p class="meta">截止：${escapeHtml(project.deadline)} | 状态：${escapeHtml(project.status)} | 参与者：${project.participants.length}</p>
               </div>
               <div class="progress-wrap"><div class="progress-bar" style="width:${Math.max(0, Math.min(100, projectProgress))}%"></div></div>
               <div class="meta">目标完成：${project.summary.completed_goals}/${project.summary.total_goals}</div>
@@ -2677,6 +2833,7 @@
           showStatus("项目进度更新成功", "ok");
         } catch (err) {
           showStatus(err.message, "error");
+          showProgressErrorDialog(err.message);
         }
       }
 
@@ -2720,6 +2877,7 @@
           showStatus("进度更新成功", "ok");
         } catch (err) {
           showStatus(err.message, "error");
+          showProgressErrorDialog(err.message);
         }
       }
 

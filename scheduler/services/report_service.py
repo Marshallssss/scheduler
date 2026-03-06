@@ -169,19 +169,19 @@ class ReportService:
         goals = [
             {
                 "project_id": project.id,
-                "project_name": project.name,
-                "title": item.goal.title,
-                "owner": item.owner.name,
+                "project_name": self._markdown_cell(project.name),
+                "title": self._markdown_cell(item.goal.title),
+                "owner": self._markdown_cell(item.owner.name),
                 "owner_email": item.owner.email,
                 "progress": item.progress,
                 "progress_display": self._progress_display(item.progress, item.progress_state),
                 "weight": item.goal.weight,
                 "milestone_date": item.goal.milestone_date,
                 "deadline": item.goal.deadline,
-                "phase_name": item.phase.name,
+                "phase_name": self._markdown_cell(item.phase.name),
                 "progress_state": item.progress_state,
-                "progress_state_label": self._progress_state_label(item.progress_state),
-                "risk_item": self._risk_item(item.progress_state, item.risk_note),
+                "progress_state_label": self._markdown_cell(self._progress_state_label(item.progress_state)),
+                "risk_item": self._markdown_cell(self._risk_item(item.progress_state, item.risk_note)),
             }
             for item in snapshots
         ]
@@ -201,20 +201,26 @@ class ReportService:
         if progress_state == "ahead":
             return "提前"
         if progress_state == "delayed":
-            return "落后"
+            return "delay"
         return "正常"
 
     def _progress_display(self, progress: float, progress_state: str) -> str:
         value = f"{progress:.2f}%"
         if progress_state == "delayed":
-            return f"<span style=\"color:#c62828;font-weight:700;\">{value}</span>"
+            return f"**{value}**"
         return value
 
     def _risk_item(self, progress_state: str, risk_note: str | None) -> str:
         clean_note = risk_note.strip() if risk_note else ""
         parts: list[str] = []
         if progress_state == "delayed":
-            parts.append("进度落后")
+            parts.append("进度delay")
         if clean_note:
             parts.append(clean_note)
         return "；".join(parts) if parts else "-"
+
+    def _markdown_cell(self, value: object) -> str:
+        text = str(value).strip() if value is not None else "-"
+        if not text:
+            return "-"
+        return text.replace("|", r"\|").replace("\r\n", "\n").replace("\n", "<br>")
