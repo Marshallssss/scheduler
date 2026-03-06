@@ -101,6 +101,10 @@ class GoalProgressUpdate(Base):
     __table_args__ = (
         UniqueConstraint("goal_id", "date", name="uq_goal_progress_goal_date"),
         CheckConstraint("progress_percent >= 0 and progress_percent <= 100", name="ck_progress_range"),
+        CheckConstraint(
+            "progress_state in ('normal', 'delayed', 'ahead')",
+            name="ck_progress_state",
+        ),
         CheckConstraint("remaining_di is null or remaining_di >= 0", name="ck_progress_remaining_di_non_negative"),
         CheckConstraint(
             "requirement_total_count is null or requirement_total_count >= 0",
@@ -124,6 +128,8 @@ class GoalProgressUpdate(Base):
     remaining_di: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     requirement_total_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     requirement_done_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    progress_state: Mapped[str] = mapped_column(String(20), nullable=False, default="normal")
+    risk_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     updated_by: Mapped[str] = mapped_column(String(120), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
@@ -162,6 +168,26 @@ class ReportRecord(Base):
     markdown_path: Mapped[str] = mapped_column(String(500), nullable=False)
     emailed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False)
+
+
+class ReportDispatchPreference(Base):
+    __tablename__ = "report_dispatch_preferences"
+    __table_args__ = (
+        UniqueConstraint("period", name="uq_report_dispatch_preferences_period"),
+        CheckConstraint("period in ('daily', 'weekly', 'monthly')", name="ck_report_dispatch_preferences_period"),
+        CheckConstraint("enabled in (0, 1)", name="ck_report_dispatch_preferences_enabled"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    period: Mapped[str] = mapped_column(String(20), nullable=False)
+    send_time: Mapped[str] = mapped_column(String(5), nullable=False)
+    recipients_csv: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    enabled: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    skip_once_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    last_scheduled_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    last_scheduled_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
 
 class UserAccount(Base):

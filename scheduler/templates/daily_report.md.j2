@@ -20,11 +20,14 @@
 - {{ phase.name }}: {{ "%.2f"|format(phase.progress) }}% ({{ phase.completed_goals }}/{{ phase.total_goals }})
 {% endfor %}
 
-### 目标明细
-| 阶段 | 目标 | 负责人 | 完成率 | 权重 | 里程碑 | 截止日期 |
-|---|---|---|---:|---:|---|---|
-{% for goal in project.goals %}
-| {{ goal.phase_name }} | {{ goal.title }} | {{ goal.owner }} | {{ "%.2f"|format(goal.progress) }}% | {{ "%.2f"|format(goal.weight) }} | {{ goal.milestone_date }} | {{ goal.deadline }} |
 {% endfor %}
 
+### 目标明细（汇总）
+| 项目 | 阶段 | 目标 | 负责人 | 完成率 | 进度状态 | 权重 | 里程碑 | 截止日期 | 风险项目 |
+|---|---|---|---|---:|---|---:|---|---|---|
+{% if not goal_details %}
+| - | - | - | - | - | - | - | - | - | - |
+{% endif %}
+{% for goal in goal_details %}
+| {{ goal.project_name }} | {{ goal.phase_name }} | {{ goal.title }} | {{ goal.owner }} | {{ goal.progress_display }} | {{ goal.progress_state_label }} | {{ "%.2f"|format(goal.weight) }} | {{ goal.milestone_date }} | {{ goal.deadline }} | {{ goal.risk_item }} |
 {% endfor %}

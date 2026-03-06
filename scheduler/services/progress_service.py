@@ -5,7 +5,13 @@ from datetime import date
 from collections import defaultdict
 from typing import Optional
 
-from scheduler.constants import GOAL_STATUS_ACTIVE, GOAL_STATUS_COMPLETED, GOAL_TYPE_ISSUE, GOAL_TYPE_REQUIREMENT
+from scheduler.constants import (
+    GOAL_STATUS_ACTIVE,
+    GOAL_STATUS_COMPLETED,
+    GOAL_TYPE_ISSUE,
+    GOAL_TYPE_REQUIREMENT,
+    PROGRESS_STATES,
+)
 from scheduler.repositories import GoalSnapshot, Repository
 from scheduler.utils import weighted_progress
 
@@ -39,6 +45,8 @@ class ProgressService:
         update_date: date,
         progress_percent: Optional[float],
         updated_by: str,
+        progress_state: str = "normal",
+        risk_note: Optional[str] = None,
         note: Optional[str] = None,
         remaining_di: Optional[float] = None,
         requirement_total_count: Optional[int] = None,
@@ -49,6 +57,10 @@ class ProgressService:
             raise ValueError(f"目标不存在: {goal_id}")
 
         clean_note = note.strip() if note else None
+        normalized_progress_state = (progress_state or "normal").strip().lower()
+        if normalized_progress_state not in PROGRESS_STATES:
+            raise ValueError("进度状态仅支持 normal、delayed、ahead")
+        clean_risk_note = risk_note.strip() if risk_note else None
         latest = self.repo.latest_progress_update(goal_id, update_date)
 
         if goal.goal_type == GOAL_TYPE_ISSUE:
@@ -119,6 +131,8 @@ class ProgressService:
             goal_id=goal_id,
             update_date=update_date,
             progress_percent=computed_progress,
+            progress_state=normalized_progress_state,
+            risk_note=clean_risk_note,
             remaining_di=remaining_di,
             requirement_total_count=requirement_total_count,
             requirement_done_count=requirement_done_count,

@@ -56,6 +56,14 @@ def _ensure_sqlite_columns(engine: Engine) -> None:
             conn.exec_driver_sql("ALTER TABLE goal_progress_updates ADD COLUMN requirement_total_count INTEGER")
         if "requirement_done_count" not in progress_columns:
             conn.exec_driver_sql("ALTER TABLE goal_progress_updates ADD COLUMN requirement_done_count INTEGER")
+        if "progress_state" not in progress_columns:
+            conn.exec_driver_sql("ALTER TABLE goal_progress_updates ADD COLUMN progress_state TEXT DEFAULT 'normal'")
+        if "risk_note" not in progress_columns:
+            conn.exec_driver_sql("ALTER TABLE goal_progress_updates ADD COLUMN risk_note TEXT")
+        conn.exec_driver_sql(
+            "UPDATE goal_progress_updates SET progress_state='normal' "
+            "WHERE progress_state IS NULL OR TRIM(progress_state) = ''"
+        )
 
         goals_table_sql = conn.exec_driver_sql(
             "SELECT sql FROM sqlite_master WHERE type='table' AND name='goals'"

@@ -15,6 +15,7 @@ from scheduler.models import (
     Participant,
     Phase,
     Project,
+    ReportDispatchPreference,
     ReminderLog,
     ReportRecord,
     UserAccount,
@@ -31,6 +32,8 @@ class GoalSnapshot:
     remaining_di: Optional[float]
     requirement_total_count: Optional[int]
     requirement_done_count: Optional[int]
+    progress_state: str
+    risk_note: Optional[str]
 
 
 class Repository:
@@ -202,6 +205,8 @@ class Repository:
                     remaining_di=progress_state["remaining_di"] if progress_state else None,
                     requirement_total_count=progress_state["requirement_total_count"] if progress_state else None,
                     requirement_done_count=progress_state["requirement_done_count"] if progress_state else None,
+                    progress_state=str(progress_state["progress_state"]) if progress_state else "normal",
+                    risk_note=str(progress_state["risk_note"]) if progress_state and progress_state["risk_note"] is not None else None,
                 )
             )
         return snapshots
@@ -233,11 +238,13 @@ class Repository:
                     remaining_di=progress_state["remaining_di"] if progress_state else None,
                     requirement_total_count=progress_state["requirement_total_count"] if progress_state else None,
                     requirement_done_count=progress_state["requirement_done_count"] if progress_state else None,
+                    progress_state=str(progress_state["progress_state"]) if progress_state else "normal",
+                    risk_note=str(progress_state["risk_note"]) if progress_state and progress_state["risk_note"] is not None else None,
                 )
             )
         return snapshots
 
-    def latest_progress_state_map(self, goal_ids: list[int], as_of: date) -> dict[int, dict[str, Optional[float]]]:
+    def latest_progress_state_map(self, goal_ids: list[int], as_of: date) -> dict[int, dict[str, Optional[object]]]:
         if not goal_ids:
             return {}
 
@@ -255,6 +262,8 @@ class Repository:
                 GoalProgressUpdate.remaining_di,
                 GoalProgressUpdate.requirement_total_count,
                 GoalProgressUpdate.requirement_done_count,
+                GoalProgressUpdate.progress_state,
+                GoalProgressUpdate.risk_note,
             )
             .join(
                 latest_dates_subq,
@@ -271,8 +280,18 @@ class Repository:
                 "remaining_di": remaining_di,
                 "requirement_total_count": requirement_total_count,
                 "requirement_done_count": requirement_done_count,
+                "progress_state": progress_state or "normal",
+                "risk_note": risk_note,
             }
-            for goal_id, progress, remaining_di, requirement_total_count, requirement_done_count in self.session.execute(stmt).all()
+            for (
+                goal_id,
+                progress,
+                remaining_di,
+                requirement_total_count,
+                requirement_done_count,
+                progress_state,
+                risk_note,
+            ) in self.session.execute(stmt).all()
         }
 
     def latest_progress_map(self, goal_ids: list[int], as_of: date) -> dict[int, float]:
@@ -284,6 +303,8 @@ class Repository:
         goal_id: int,
         update_date: date,
         progress_percent: float,
+        progress_state: str,
+        risk_note: Optional[str],
         note: Optional[str],
         updated_by: str,
         remaining_di: Optional[float] = None,
@@ -302,6 +323,8 @@ class Repository:
                 remaining_di=remaining_di,
                 requirement_total_count=requirement_total_count,
                 requirement_done_count=requirement_done_count,
+                progress_state=progress_state,
+                risk_note=risk_note,
                 note=note,
                 updated_by=updated_by,
             )
@@ -311,6 +334,8 @@ class Repository:
             existing.remaining_di = remaining_di
             existing.requirement_total_count = requirement_total_count
             existing.requirement_done_count = requirement_done_count
+            existing.progress_state = progress_state
+            existing.risk_note = risk_note
             existing.note = note
             existing.updated_by = updated_by
             existing.created_at = datetime.utcnow()
@@ -373,6 +398,55 @@ class Repository:
             return
         record.status = status
         record.emailed_at = datetime.utcnow()
+
+    def get_report_dispatch_preference(self, period: str) -> Optional[ReportDispatchPreference]:
+        stmt = select(ReportDispatchPreference).where(ReportDispatchPreference.period == period)
+        return self.session.scalar(stmt)
+
+    def list_report_dispatch_preferences(self) -> list[ReportDispatchPreference]:
+        stmt = select(ReportDispatchPreference).order_by(ReportDispatchPreference.id.asc())
+        return list(self.session.scalars(stmt))
+
+    def get_or_create_report_dispatch_preference(self, period: str, send_time: str) -> ReportDispatchPreference:
+        existing = self.get_report_dispatch_preference(period)
+        if existing is not None:
+            return existing
+
+        item = ReportDispatchPreference(
+            period=period,
+            send_time=send_time,
+            recipients_csv=None,
+            enabled=0,
+            updated_at=datetime.utcnow(),
+        )
+        self.session.add(item)
+        self.session.flush()
+        return item
+
+    def upsert_report_dispatch_preference(
+        self,
+        period: str,
+        send_time: str,
+        recipients_csv: Optional[str],
+        enabled: int,
+    ) -> ReportDispatchPreference:
+        item = self.get_report_dispatch_preference(period)
+        if item is None:
+            item = ReportDispatchPreference(
+                period=period,
+                send_time=send_time,
+                recipients_csv=recipients_csv,
+                enabled=enabled,
+                updated_at=datetime.utcnow(),
+            )
+            self.session.add(item)
+        else:
+            item.send_time = send_time
+            item.recipients_csv = recipients_csv
+            item.enabled = enabled
+            item.updated_at = datetime.utcnow()
+        self.session.flush()
+        return item
 
     def grouped_goal_snapshots_by_project(self, as_of: date) -> dict[int, list[GoalSnapshot]]:
         grouped: dict[int, list[GoalSnapshot]] = defaultdict(list)

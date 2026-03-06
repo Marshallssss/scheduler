@@ -26,7 +26,8 @@
 
       body {
         margin: 0;
-        font-family: "Avenir Next", "Segoe UI", "Noto Sans SC", sans-serif;
+        font-family: "SF Pro Text", "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Helvetica Neue", Arial, sans-serif;
+        font-size: 16px;
         background:
           radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0) 44%),
           radial-gradient(circle at 84% 4%, rgba(123, 186, 255, 0.42) 0%, rgba(123, 186, 255, 0) 38%),
@@ -60,9 +61,9 @@
       }
 
       .container {
-        max-width: 1360px;
+        max-width: 2380px;
         margin: 0 auto;
-        padding: 20px 16px 40px;
+        padding: 20px 20px 44px;
       }
 
       .top {
@@ -75,13 +76,13 @@
 
       .title {
         margin: 0;
-        font-size: 28px;
+        font-size: 30px;
       }
 
       .subtitle {
         margin: 5px 0 0;
         color: var(--muted);
-        font-size: 14px;
+        font-size: 15px;
       }
 
       .auth-bar {
@@ -95,7 +96,7 @@
         background: var(--panel-soft);
         backdrop-filter: var(--glass-blur);
         border-radius: 999px;
-        font-size: 12px;
+        font-size: 13px;
         color: var(--text);
         padding: 6px 12px;
       }
@@ -110,7 +111,7 @@
         padding: 0 13px;
         display: inline-flex;
         align-items: center;
-        font-size: 13px;
+        font-size: 14px;
       }
 
       .status.ok { color: var(--good); border-color: rgba(104, 205, 150, 0.5); background: rgba(236, 255, 246, 0.62); }
@@ -121,7 +122,7 @@
         border: 1px solid transparent;
         border-radius: 12px;
         cursor: pointer;
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 600;
         padding: 9px 13px;
         backdrop-filter: var(--glass-blur);
@@ -203,12 +204,12 @@
         animation: glassIn 0.35s ease both;
       }
 
-      .panel h2 { margin: 0 0 10px; font-size: 17px; }
-      .panel h3 { margin: 0; font-size: 15px; }
+      .panel h2 { margin: 0 0 10px; font-size: 18px; }
+      .panel h3 { margin: 0; font-size: 16px; }
 
       .auth-panel { grid-column: span 12; }
       .main-tabs { grid-column: span 12; }
-      .tab-page { grid-column: span 12; display: grid; gap: 14px; }
+      .tab-page { grid-column: span 12; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 14px; }
       .admin-users { grid-column: span 4; }
       .project { grid-column: span 4; }
       .project-edit { grid-column: span 6; }
@@ -216,9 +217,11 @@
       .goal { grid-column: span 4; }
       .phase-edit { grid-column: span 6; }
       .goal-edit { grid-column: span 6; }
-      .progress { grid-column: span 4; }
-      .dashboard { grid-column: span 8; }
+      .progress { grid-column: span 3; }
+      .dashboard { grid-column: span 12; }
       .progress .two-col { grid-template-columns: 1fr; }
+      .report-preview { grid-column: span 8; }
+      .report-dispatch { grid-column: span 4; }
       .ops { grid-column: span 12; }
 
       .hidden { display: none !important; }
@@ -246,38 +249,82 @@
       }
 
       .field { display: grid; gap: 5px; margin-bottom: 10px; }
-      .field label { font-size: 12px; color: var(--muted); }
+      .field label { font-size: 13px; color: var(--muted); }
 
       input, select, textarea {
         width: 100%;
         border: 1px solid var(--line);
         border-radius: 12px;
         padding: 9px 10px;
-        font-size: 14px;
+        font-size: 15px;
         color: var(--text);
         background: var(--panel-soft);
         backdrop-filter: var(--glass-blur);
       }
 
       textarea { min-height: 82px; resize: vertical; }
+      .markdown-box { min-height: 320px; font-family: "SF Mono", "Menlo", "Consolas", monospace; }
 
       .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
       .hint {
         margin: 2px 0 10px;
-        font-size: 12px;
+        font-size: 13px;
         color: var(--muted);
       }
 
-      .project-grid { display: grid; gap: 12px; }
+      .project-grid { display: grid; gap: 18px; }
 
       .project-card {
         border: 1px solid var(--line);
-        border-radius: 18px;
+        border-radius: 22px;
         background: rgba(255, 255, 255, 0.42);
         backdrop-filter: var(--glass-blur);
-        padding: 12px;
+        padding: 16px;
         animation: glassIn 0.42s ease both;
+      }
+
+      .project-shell {
+        margin-top: 12px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 340px;
+        gap: 14px;
+        align-items: start;
+      }
+
+      .project-main-col { min-width: 0; }
+
+      .project-update {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.38);
+        backdrop-filter: var(--glass-blur);
+        padding: 12px;
+      }
+
+      .project-update h4 {
+        margin: 0 0 8px;
+        font-size: 15px;
+      }
+
+      .project-update .field {
+        margin-bottom: 8px;
+      }
+
+      .project-update .field label {
+        font-size: 12px;
+      }
+
+      .project-update .two-col {
+        gap: 8px;
+      }
+
+      .project-update textarea {
+        min-height: 62px;
+      }
+
+      .project-update .btn-primary {
+        width: 100%;
       }
 
       .project-head {
@@ -288,7 +335,7 @@
       }
 
       .project-name { margin: 0; font-size: 18px; }
-      .meta { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+      .meta { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
 
       .progress-wrap {
         margin-top: 8px;
@@ -312,9 +359,28 @@
       .chip.good { color: #107343; background: rgba(202, 247, 225, 0.72); }
       .chip.warn { color: #935b00; background: rgba(255, 236, 198, 0.74); }
       .chip.bad { color: #9e2c3d; background: rgba(255, 215, 221, 0.75); }
+      .chip.state-normal { color: #1058b5; background: rgba(205, 226, 255, 0.78); }
+      .chip.state-delayed { color: #a22938; background: rgba(255, 214, 220, 0.8); }
+      .chip.state-ahead { color: #0e7a4b; background: rgba(201, 243, 224, 0.8); }
       .chip.risk-green { color: #107343; background: rgba(202, 247, 225, 0.72); }
       .chip.risk-yellow { color: #935b00; background: rgba(255, 236, 198, 0.74); }
       .chip.risk-red { color: #9e2c3d; background: rgba(255, 215, 221, 0.75); }
+
+      .goal-progress-cell {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .progress-text {
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .progress-text.state-normal { color: #1058b5; }
+      .progress-text.state-delayed { color: #a22938; font-weight: 700; }
+      .progress-text.state-ahead { color: #0e7a4b; }
 
       .phase-grid { display: grid; gap: 10px; margin-top: 10px; }
       .phase-card {
@@ -431,6 +497,11 @@
         background: rgba(17, 31, 53, 0.46);
       }
 
+      body.theme-dark .project-update {
+        border-color: var(--line);
+        background: rgba(17, 31, 53, 0.46);
+      }
+
       body.theme-dark .progress-wrap {
         background: rgba(78, 109, 164, 0.38);
       }
@@ -487,10 +558,34 @@
         box-shadow: 0 2px 8px rgba(88, 129, 255, 0.35);
       }
 
+      .gantt-fill.state-normal {
+        background: linear-gradient(90deg, #69a8ff, #4b7cf8);
+      }
+
+      .gantt-fill.state-delayed {
+        background: linear-gradient(90deg, #ff8e9e, #ea5568);
+      }
+
+      .gantt-fill.state-ahead {
+        background: linear-gradient(90deg, #6fd8a6, #2fb877);
+      }
+
       .gantt-meta {
         margin-top: 4px;
         color: var(--muted);
         font-size: 12px;
+      }
+
+      .check-line {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .check-line input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        margin: 0;
       }
 
       @keyframes glassIn {
@@ -505,12 +600,13 @@
       }
 
       @media (max-width: 1160px) {
-        .admin-users, .project, .project-edit, .phase, .goal, .phase-edit, .goal-edit, .dashboard, .progress { grid-column: span 12; }
+        .admin-users, .project, .project-edit, .phase, .goal, .phase-edit, .goal-edit, .dashboard, .progress, .report-preview, .report-dispatch { grid-column: span 12; }
       }
 
       @media (max-width: 760px) {
         .top { flex-direction: column; align-items: flex-start; }
         .two-col { grid-template-columns: 1fr; }
+        .project-shell { grid-template-columns: 1fr; }
         .gantt-row { grid-template-columns: 1fr; }
         .gantt-label { white-space: normal; }
         .gantt-scale { font-size: 10px; gap: 4px; }
@@ -571,6 +667,7 @@
         <section class="panel main-tabs hidden" id="mainTabsPanel">
           <div class="tab-buttons">
             <button id="tabDashboardBtn" class="tab-btn active" type="button">看板与配置</button>
+            <button id="tabReportsBtn" class="tab-btn hidden" type="button">报表与邮件</button>
             <button id="tabOpsBtn" class="tab-btn hidden" type="button">创建与维护</button>
             <button id="tabAdminBtn" class="tab-btn hidden" type="button">管理员入口</button>
           </div>
@@ -630,6 +727,79 @@
               </div>
               <button class="btn-primary" type="submit">提交进度</button>
             </form>
+          </section>
+        </section>
+
+        <section class="tab-page hidden" id="reportsTabPage">
+          <section class="panel report-preview hidden admin-only" id="reportPreviewPanel">
+            <h2>日报/周报/月报预览与编辑</h2>
+            <form id="reportPreviewForm">
+              <div class="two-col">
+                <div class="field">
+                  <label for="reportPeriod">报表周期</label>
+                  <select id="reportPeriod">
+                    <option value="daily">日报</option>
+                    <option value="weekly">周报</option>
+                    <option value="monthly">月报</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="reportDate">统计日期</label>
+                  <input id="reportDate" type="date" required />
+                </div>
+              </div>
+              <button class="btn-secondary" type="submit">加载预览</button>
+            </form>
+
+            <div class="field" style="margin-top: 10px;">
+              <label for="reportSubject">邮件主题</label>
+              <input id="reportSubject" readonly />
+            </div>
+            <div class="field">
+              <label for="reportRecipients">发送成员（每行或逗号分隔邮箱）</label>
+              <textarea id="reportRecipients" placeholder="owner@example.com\npm@example.com"></textarea>
+            </div>
+            <div class="field">
+              <label for="reportMarkdown">报表内容（支持编辑）</label>
+              <textarea id="reportMarkdown" class="markdown-box"></textarea>
+            </div>
+            <div class="field">
+              <label for="reportSkipToday" class="check-line">
+                <input id="reportSkipToday" type="checkbox" />
+                跳过今日定时并立即发送
+              </label>
+            </div>
+            <button id="reportSendNowBtn" class="btn-primary" type="button">立即发送</button>
+          </section>
+
+          <section class="panel report-dispatch hidden admin-only" id="reportDispatchPanel">
+            <h2>邮件定时配置</h2>
+            <form id="reportDispatchForm">
+              <div class="field">
+                <label for="dispatchPeriod">配置周期</label>
+                <select id="dispatchPeriod">
+                  <option value="daily">日报</option>
+                  <option value="weekly">周报</option>
+                  <option value="monthly">月报</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="dispatchSendTime">发送时间</label>
+                <input id="dispatchSendTime" type="time" required />
+              </div>
+              <div class="field">
+                <label for="dispatchRecipients">发送成员（每行或逗号分隔邮箱）</label>
+                <textarea id="dispatchRecipients" placeholder="owner@example.com\npm@example.com"></textarea>
+              </div>
+              <div class="field">
+                <label for="dispatchEnabled" class="check-line">
+                  <input id="dispatchEnabled" type="checkbox" />
+                  启用该周期定时
+                </label>
+              </div>
+              <button class="btn-primary" type="submit">保存定时配置</button>
+            </form>
+            <div id="dispatchSummary" class="hint" style="margin-top: 10px;">尚未加载配置。</div>
           </section>
         </section>
 
@@ -910,8 +1080,10 @@
         activeMainTab: "dashboard",
         activeOpsTab: "project",
         projects: [],
+        projectsFingerprint: "",
         users: [],
         participantOptions: [],
+        reportDispatchMap: new Map(),
         phaseMap: new Map(),
         goalMap: new Map(),
         projectMap: new Map(),
@@ -935,9 +1107,11 @@
 
         mainTabsPanel: document.getElementById("mainTabsPanel"),
         dashboardTabPage: document.getElementById("dashboardTabPage"),
+        reportsTabPage: document.getElementById("reportsTabPage"),
         opsTabPage: document.getElementById("opsTabPage"),
         adminTabPage: document.getElementById("adminTabPage"),
         tabDashboardBtn: document.getElementById("tabDashboardBtn"),
+        tabReportsBtn: document.getElementById("tabReportsBtn"),
         tabOpsBtn: document.getElementById("tabOpsBtn"),
         tabAdminBtn: document.getElementById("tabAdminBtn"),
 
@@ -956,6 +1130,8 @@
         opsGoalEditBtn: document.getElementById("opsGoalEditBtn"),
         progressPanel: document.getElementById("progressPanel"),
         dashboardPanel: document.getElementById("dashboardPanel"),
+        reportPreviewPanel: document.getElementById("reportPreviewPanel"),
+        reportDispatchPanel: document.getElementById("reportDispatchPanel"),
 
         projectForm: document.getElementById("projectForm"),
         projectEditForm: document.getElementById("projectEditForm"),
@@ -964,6 +1140,8 @@
         phaseEditForm: document.getElementById("phaseEditForm"),
         goalEditForm: document.getElementById("goalEditForm"),
         progressForm: document.getElementById("progressForm"),
+        reportPreviewForm: document.getElementById("reportPreviewForm"),
+        reportDispatchForm: document.getElementById("reportDispatchForm"),
 
         projectDeadline: document.getElementById("projectDeadline"),
         projectParticipants: document.getElementById("projectParticipants"),
@@ -1021,6 +1199,18 @@
         progressRemainingDi: document.getElementById("progressRemainingDi"),
         progressUpdatedBy: document.getElementById("progressUpdatedBy"),
         progressNote: document.getElementById("progressNote"),
+        reportPeriod: document.getElementById("reportPeriod"),
+        reportDate: document.getElementById("reportDate"),
+        reportSubject: document.getElementById("reportSubject"),
+        reportRecipients: document.getElementById("reportRecipients"),
+        reportMarkdown: document.getElementById("reportMarkdown"),
+        reportSkipToday: document.getElementById("reportSkipToday"),
+        reportSendNowBtn: document.getElementById("reportSendNowBtn"),
+        dispatchPeriod: document.getElementById("dispatchPeriod"),
+        dispatchSendTime: document.getElementById("dispatchSendTime"),
+        dispatchRecipients: document.getElementById("dispatchRecipients"),
+        dispatchEnabled: document.getElementById("dispatchEnabled"),
+        dispatchSummary: document.getElementById("dispatchSummary"),
 
         dashboard: document.getElementById("dashboard"),
       };
@@ -1125,6 +1315,28 @@
           });
       }
 
+      function parseEmailList(raw) {
+        return Array.from(
+          new Set(
+            raw
+              .split(/[\n,]/)
+              .map((item) => item.trim().toLowerCase())
+              .filter(Boolean)
+          )
+        );
+      }
+
+      function emailsToTextarea(emails) {
+        return (emails || []).join("\n");
+      }
+
+      function reportPeriodLabel(period) {
+        if (period === "daily") return "日报";
+        if (period === "weekly") return "周报";
+        if (period === "monthly") return "月报";
+        return period;
+      }
+
       function upsertSelectOptions(selectEl, options, preferred = "") {
         const keep = preferred || selectEl.value;
         selectEl.innerHTML = "";
@@ -1180,6 +1392,25 @@
           return `${percent}% / 手动`;
         }
         return `${percent}% / 需求:${Number(goal.requirement_done_count ?? 0)}/${Number(goal.requirement_total_count ?? 0)}`;
+      }
+
+      function normalizeProgressState(value) {
+        if (value === "delayed" || value === "ahead") return value;
+        return "normal";
+      }
+
+      function progressStateLabel(value) {
+        const state = normalizeProgressState(value);
+        if (state === "delayed") return "落后";
+        if (state === "ahead") return "提前";
+        return "正常";
+      }
+
+      function progressStateClass(value) {
+        const state = normalizeProgressState(value);
+        if (state === "delayed") return "state-delayed";
+        if (state === "ahead") return "state-ahead";
+        return "state-normal";
       }
 
       function goalRiskClass(goal) {
@@ -1250,9 +1481,12 @@
             const left = (startDay / totalDays) * 100;
             const width = (duration / totalDays) * 100;
             const fill = Math.max(0, Math.min(100, Number(goal.progress_percent || 0)));
+            const stateClass = progressStateClass(goal.progress_state);
+            const stateLabel = progressStateLabel(goal.progress_state);
             const riskClass = goalRiskClass(goal);
             const riskLabel = goalRiskLabel(goal);
             const noteText = goal.note ? ` | 备注：${goal.note}` : "";
+            const riskText = goal.risk_note ? ` | 风险补充：${goal.risk_note}` : "";
             const progressText = goal.goal_type === "issue"
               ? `${fill.toFixed(2)}% | 剩余DI:${Number(goal.remaining_di ?? goal.issue_total_di ?? 0).toFixed(2)}`
               : goal.goal_type === "task"
@@ -1260,17 +1494,17 @@
                 : `${fill.toFixed(2)}% | 需求:${Number(goal.requirement_done_count ?? 0)}/${Number(goal.requirement_total_count ?? 0)}`;
 
             return `<div class="gantt-row">
-              <div class="gantt-label" title="${escapeHtml(goal.phaseName)} / ${escapeHtml(goal.title)}${escapeHtml(noteText)}">
+              <div class="gantt-label" title="${escapeHtml(goal.phaseName)} / ${escapeHtml(goal.title)}${escapeHtml(noteText)}${escapeHtml(riskText)}">
                 <div>${escapeHtml(goal.phaseName)} / ${escapeHtml(goal.title)}</div>
                 <div class="gantt-label-sub">${escapeHtml(goal.milestone_date)} ~ ${escapeHtml(goal.deadline)}</div>
               </div>
               <div>
                 <div class="gantt-track">
-                  <div class="gantt-bar ${riskClass}" style="left:${left}%; width:${Math.max(1, width)}%;">
-                    <div class="gantt-fill" style="width:${fill}%;"></div>
+                  <div class="gantt-bar" style="left:${left}%; width:${Math.max(1, width)}%;">
+                    <div class="gantt-fill ${stateClass}" style="width:${fill}%;"></div>
                   </div>
                 </div>
-                <div class="gantt-meta">负责人：${escapeHtml(goal.owner_name)} | 进度：${escapeHtml(progressText)} | <span class="chip ${riskClass}">${escapeHtml(riskLabel)}</span></div>
+                <div class="gantt-meta">负责人：${escapeHtml(goal.owner_name)} | 进度：${escapeHtml(progressText)} | 状态：<span class="chip ${stateClass}">${escapeHtml(stateLabel)}</span> | <span class="chip ${riskClass}">${escapeHtml(riskLabel)}</span></div>
               </div>
             </div>`;
           })
@@ -1297,6 +1531,151 @@
         dom.userList.innerHTML = `<table><thead><tr><th>ID</th><th>用户名</th><th>角色</th><th>绑定参与者</th></tr></thead><tbody>${rows}</tbody></table>`;
       }
 
+      function renderProjectUpdatePanel(project) {
+        const editableGoals = [];
+        project.phases.forEach((phase) => {
+          phase.goals.forEach((goal) => {
+            if (!goal.editable) return;
+            editableGoals.push({ goal, phaseName: phase.name });
+          });
+        });
+
+        if (!editableGoals.length) {
+          return `<aside class="project-update">
+            <h4>更新进度</h4>
+            <div class="empty" style="padding: 12px;">你在该项目暂无可更新目标</div>
+          </aside>`;
+        }
+
+        const defaultUpdatedBy = state.me ? state.me.username : "web_user";
+        const optionsHtml = editableGoals
+          .map((item, index) => `<option value="${item.goal.id}" ${index === 0 ? "selected" : ""}>${escapeHtml(item.phaseName)} / ${escapeHtml(item.goal.title)}</option>`)
+          .join("");
+
+        return `<aside class="project-update">
+          <h4>更新进度</h4>
+          <form class="project-update-form" data-project-id="${project.id}">
+            <div class="field">
+              <label>目标</label>
+              <select name="goal_id" class="project-goal-select" required>${optionsHtml}</select>
+            </div>
+            <div class="two-col">
+              <div class="field">
+                <label>日期</label>
+                <input name="date" type="date" value="${todayISO()}" required />
+              </div>
+              <div class="field">
+                <label>更新人</label>
+                <input name="updated_by" value="${escapeHtml(defaultUpdatedBy)}" required />
+              </div>
+            </div>
+            <div class="two-col project-requirement-fields">
+              <div class="field">
+                <label>需求总数</label>
+                <input name="requirement_total_count" type="number" min="0" step="1" />
+              </div>
+              <div class="field">
+                <label>已完成需求数</label>
+                <input name="requirement_done_count" type="number" min="0" step="1" />
+              </div>
+            </div>
+            <div class="field project-percent-field hidden">
+              <label>完成率 0-100</label>
+              <input name="progress_percent" type="number" min="0" max="100" step="0.01" />
+            </div>
+            <div class="field project-remaining-di-field hidden">
+              <label>剩余 DI</label>
+              <input name="remaining_di" type="number" min="0" step="0.01" />
+            </div>
+            <div class="field">
+              <label>项目进度状态</label>
+              <select name="progress_state" required>
+                <option value="normal">正常（蓝）</option>
+                <option value="delayed">落后（红）</option>
+                <option value="ahead">提前（绿）</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>风险补充（可选）</label>
+              <textarea name="risk_note" placeholder="例如：外部依赖未到位、资源冲突、环境阻塞"></textarea>
+            </div>
+            <div class="field">
+              <label>备注（回退必填）</label>
+              <textarea name="note"></textarea>
+            </div>
+            <p class="hint project-update-hint">加载中...</p>
+            <button class="btn-primary" type="submit">提交该项目进度</button>
+          </form>
+        </aside>`;
+      }
+
+      function syncProjectUpdateForm(form) {
+        if (!form) return;
+        const goalSelect = form.querySelector(".project-goal-select");
+        const hintEl = form.querySelector(".project-update-hint");
+        const requirementWrap = form.querySelector(".project-requirement-fields");
+        const percentField = form.querySelector(".project-percent-field");
+        const remainingField = form.querySelector(".project-remaining-di-field");
+        const submitBtn = form.querySelector("button[type='submit']");
+        const progressStateEl = form.querySelector("select[name='progress_state']");
+
+        const goalId = Number(goalSelect ? goalSelect.value : 0);
+        const goal = state.goalMap.get(goalId);
+        if (!goal) {
+          if (hintEl) hintEl.textContent = "暂无可更新目标";
+          if (submitBtn) submitBtn.disabled = true;
+          return;
+        }
+
+        if (submitBtn) submitBtn.disabled = false;
+        const isIssue = goal.goal_type === "issue";
+        const isTask = goal.goal_type === "task";
+        requirementWrap.classList.toggle("hidden", isIssue || isTask);
+        percentField.classList.toggle("hidden", !isTask);
+        remainingField.classList.toggle("hidden", !isIssue);
+
+        const stateValue = normalizeProgressState(goal.progress_state);
+        if (progressStateEl) {
+          progressStateEl.value = stateValue;
+        }
+        const riskNoteInput = form.querySelector("textarea[name='risk_note']");
+        if (riskNoteInput) {
+          riskNoteInput.value = goal.risk_note || "";
+        }
+
+        if (isIssue) {
+          const input = form.querySelector("input[name='remaining_di']");
+          const currentRemaining = Number(goal.remaining_di ?? goal.issue_total_di ?? 0);
+          if (input) {
+            input.value = Number.isFinite(currentRemaining) ? currentRemaining.toFixed(2) : "0";
+          }
+          if (hintEl) hintEl.textContent = "问题单型目标：填写剩余 DI。";
+        } else if (isTask) {
+          const input = form.querySelector("input[name='progress_percent']");
+          const currentProgress = Number(goal.progress_percent || 0);
+          if (input) {
+            input.value = Number.isFinite(currentProgress) ? currentProgress.toFixed(2) : "0";
+          }
+          if (hintEl) hintEl.textContent = "事务型目标：手动填写完成率。";
+        } else {
+          const totalInput = form.querySelector("input[name='requirement_total_count']");
+          const doneInput = form.querySelector("input[name='requirement_done_count']");
+          if (totalInput) {
+            totalInput.value = goal.requirement_total_count != null ? String(goal.requirement_total_count) : "";
+          }
+          if (doneInput) {
+            doneInput.value = goal.requirement_done_count != null ? String(goal.requirement_done_count) : "";
+          }
+          if (hintEl) hintEl.textContent = "需求型目标：填写总需求数和已完成需求数。";
+        }
+      }
+
+      function initProjectUpdateForms() {
+        dom.dashboard.querySelectorAll(".project-update-form").forEach((form) => {
+          syncProjectUpdateForm(form);
+        });
+      }
+
       function renderDashboard() {
         if (!state.projects.length) {
           dom.dashboard.innerHTML = '<div class="empty">暂无可见项目。管理员可先创建项目；负责人只会看到自己所属项目。</div>';
@@ -1312,17 +1691,23 @@
                 const goalsRows = phase.goals.length
                   ? phase.goals
                       .map((goal) => {
-                        const riskClass = goalRiskClass(goal);
-                        const riskLabel = goalRiskLabel(goal);
+                        const stateClass = progressStateClass(goal.progress_state);
+                        const stateLabel = progressStateLabel(goal.progress_state);
                         const noteBadge = goal.note
                           ? ` <span class="meta" title="${escapeHtml(goal.note)}">(备注)</span>`
                           : "";
                         const progressText = goalProgressText(goal);
+                        const riskTip = goal.risk_note ? `；风险补充：${goal.risk_note}` : "";
                         return `<tr>
                       <td>${escapeHtml(goal.title)}${noteBadge}</td>
                       <td>${escapeHtml(goalTypeLabel(goal))}</td>
                       <td>${escapeHtml(goal.owner_name)}</td>
-                      <td><span class="chip ${riskClass}" title="${escapeHtml(riskLabel)}">${escapeHtml(progressText)}</span></td>
+                      <td>
+                        <div class="goal-progress-cell" title="${escapeHtml(`状态：${stateLabel}${riskTip}`)}">
+                          <span class="chip ${stateClass}">${escapeHtml(stateLabel)}</span>
+                          <span class="progress-text ${stateClass}">${escapeHtml(progressText)}</span>
+                        </div>
+                      </td>
                       <td>${Number(goal.weight).toFixed(2)}</td>
                       <td>${escapeHtml(goal.milestone_date)}</td>
                       <td>${escapeHtml(goal.deadline)}</td>
@@ -1357,13 +1742,19 @@
               </div>
               <div class="progress-wrap"><div class="progress-bar" style="width:${Math.max(0, Math.min(100, projectProgress))}%"></div></div>
               <div class="meta">目标完成：${project.summary.completed_goals}/${project.summary.total_goals}</div>
-              <div class="phase-grid">${phasesHtml || '<div class="empty">暂无阶段</div>'}</div>
-              ${renderGantt(project)}
+              <div class="project-shell">
+                <div class="project-main-col">
+                  <div class="phase-grid">${phasesHtml || '<div class="empty">暂无阶段</div>'}</div>
+                  ${renderGantt(project)}
+                </div>
+                ${renderProjectUpdatePanel(project)}
+              </div>
             </article>`;
           })
           .join("");
 
         dom.dashboard.innerHTML = html;
+        initProjectUpdateForms();
       }
 
       function rebuildIndexes() {
@@ -1612,20 +2003,129 @@
         upsertSelectOptions(dom.newParticipantId, options);
       }
 
+      function findDispatchPreference(period) {
+        return state.reportDispatchMap.get(period) || null;
+      }
+
+      function syncDispatchForm() {
+        const period = dom.dispatchPeriod.value;
+        const pref = findDispatchPreference(period);
+        if (!pref) {
+          dom.dispatchSendTime.value = "18:00";
+          dom.dispatchRecipients.value = "";
+          dom.dispatchEnabled.checked = false;
+          dom.dispatchSummary.textContent = "当前周期尚无配置。";
+          return;
+        }
+        dom.dispatchSendTime.value = pref.send_time || "18:00";
+        dom.dispatchRecipients.value = emailsToTextarea(pref.recipients || []);
+        dom.dispatchEnabled.checked = !!pref.enabled;
+        const statusText = pref.last_status ? `上次状态: ${pref.last_status}` : "尚无执行记录";
+        const dateText = pref.last_scheduled_date ? `上次执行日: ${pref.last_scheduled_date}` : "未执行";
+        const skipText = pref.skip_once_date ? `跳过日: ${pref.skip_once_date}` : "无跳过";
+        dom.dispatchSummary.textContent = `${reportPeriodLabel(period)} | ${dateText} | ${statusText} | ${skipText}`;
+      }
+
+      async function loadReportDispatchPreferences() {
+        if (!state.me || state.me.role !== "admin") return;
+        const data = await requestJson("/api/report-dispatch/preferences");
+        const prefs = data.preferences || [];
+        state.reportDispatchMap = new Map(prefs.map((item) => [item.period, item]));
+        syncDispatchForm();
+      }
+
+      async function handleReportPreview(event) {
+        event.preventDefault();
+        try {
+          const period = dom.reportPeriod.value;
+          const runDate = dom.reportDate.value;
+          const data = await requestJson(`/api/reports/preview?period=${period}&date=${runDate}`);
+          dom.reportSubject.value = data.subject || "";
+          dom.reportMarkdown.value = data.markdown || "";
+          const scheduledRecipients = data.scheduled && data.scheduled.recipients ? data.scheduled.recipients : [];
+          const recipients = scheduledRecipients.length ? scheduledRecipients : (data.default_recipients || []);
+          dom.reportRecipients.value = emailsToTextarea(recipients);
+          showStatus(`${reportPeriodLabel(period)}预览已加载`, "ok");
+        } catch (err) {
+          showStatus(err.message, "error");
+        }
+      }
+
+      async function handleReportSendNow() {
+        try {
+          const recipients = parseEmailList(dom.reportRecipients.value);
+          const payload = {
+            period: dom.reportPeriod.value,
+            run_date: dom.reportDate.value,
+            markdown: dom.reportMarkdown.value,
+            recipients,
+            skip_today_schedule: !!dom.reportSkipToday.checked,
+          };
+          const data = await requestJson("/api/reports/send-now", {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+          dom.reportSkipToday.checked = false;
+          await loadReportDispatchPreferences();
+          showStatus(`发送完成：${data.status} (${data.recipients.length}人)`, data.status === "sent" ? "ok" : "warn");
+        } catch (err) {
+          showStatus(err.message, "error");
+        }
+      }
+
+      async function handleReportDispatchSave(event) {
+        event.preventDefault();
+        try {
+          const period = dom.dispatchPeriod.value;
+          const recipients = parseEmailList(dom.dispatchRecipients.value);
+          const data = await requestJson(`/api/report-dispatch/preferences/${period}`, {
+            method: "PUT",
+            body: JSON.stringify({
+              send_time: dom.dispatchSendTime.value,
+              recipients,
+              enabled: !!dom.dispatchEnabled.checked,
+            }),
+          });
+          state.reportDispatchMap.set(period, data.preference);
+          syncDispatchForm();
+          showStatus(`${reportPeriodLabel(period)}定时配置已保存`, "ok");
+        } catch (err) {
+          showStatus(err.message, "error");
+        }
+      }
+
+      async function runDueReportDispatch() {
+        if (!state.me || state.me.role !== "admin") return;
+        try {
+          const data = await requestJson("/api/report-dispatch/run-due", { method: "POST" });
+          const runs = data.runs || [];
+          if (runs.length) {
+            await loadReportDispatchPreferences();
+            const text = runs.map((item) => `${reportPeriodLabel(item.period)}:${item.status}`).join(" / ");
+            showStatus(`定时邮件执行: ${text}`, "ok");
+          }
+        } catch (err) {
+          showStatus(err.message, "error");
+        }
+      }
+
       function setMainTab(tab) {
-        if (tab === "admin" || tab === "ops") {
+        if (tab === "admin" || tab === "ops" || tab === "reports") {
           state.activeMainTab = tab;
         } else {
           state.activeMainTab = "dashboard";
         }
         const isDashboardTab = state.activeMainTab === "dashboard";
+        const isReportsTab = state.activeMainTab === "reports";
         const isOpsTab = state.activeMainTab === "ops";
         const isAdminTab = state.activeMainTab === "admin";
 
         dom.tabDashboardBtn.classList.toggle("active", isDashboardTab);
+        dom.tabReportsBtn.classList.toggle("active", isReportsTab);
         dom.tabOpsBtn.classList.toggle("active", isOpsTab);
         dom.tabAdminBtn.classList.toggle("active", isAdminTab);
         dom.dashboardTabPage.classList.toggle("hidden", !isDashboardTab);
+        dom.reportsTabPage.classList.toggle("hidden", !isReportsTab);
         dom.opsTabPage.classList.toggle("hidden", !isOpsTab);
         dom.adminTabPage.classList.toggle("hidden", !isAdminTab);
       }
@@ -1658,11 +2158,15 @@
           dom.currentUser.textContent = "未登录";
           dom.mainTabsPanel.classList.add("hidden");
           dom.dashboardTabPage.classList.add("hidden");
+          dom.reportsTabPage.classList.add("hidden");
           dom.opsTabPage.classList.add("hidden");
           dom.adminTabPage.classList.add("hidden");
           dom.opsPanel.classList.add("hidden");
           dom.progressPanel.classList.add("hidden");
           dom.dashboardPanel.classList.add("hidden");
+          dom.reportPreviewPanel.classList.add("hidden");
+          dom.reportDispatchPanel.classList.add("hidden");
+          dom.tabReportsBtn.classList.add("hidden");
           dom.tabOpsBtn.classList.add("hidden");
           dom.tabAdminBtn.classList.add("hidden");
           dom.adminUserPanel.classList.add("hidden");
@@ -1671,20 +2175,26 @@
 
         dom.currentUser.textContent = `${state.me.username} (${state.me.role})`;
         dom.mainTabsPanel.classList.remove("hidden");
-        dom.progressPanel.classList.remove("hidden");
+        dom.progressPanel.classList.add("hidden");
         dom.dashboardPanel.classList.remove("hidden");
         dom.dashboardTabPage.classList.remove("hidden");
 
         if (state.me.role === "admin") {
           dom.opsPanel.classList.remove("hidden");
+          dom.reportPreviewPanel.classList.remove("hidden");
+          dom.reportDispatchPanel.classList.remove("hidden");
+          dom.tabReportsBtn.classList.remove("hidden");
           dom.tabOpsBtn.classList.remove("hidden");
           dom.tabAdminBtn.classList.remove("hidden");
           dom.adminUserPanel.classList.remove("hidden");
         } else {
           dom.opsPanel.classList.add("hidden");
+          dom.reportPreviewPanel.classList.add("hidden");
+          dom.reportDispatchPanel.classList.add("hidden");
+          dom.tabReportsBtn.classList.add("hidden");
           dom.tabOpsBtn.classList.add("hidden");
           dom.tabAdminBtn.classList.add("hidden");
-          if (state.activeMainTab === "admin" || state.activeMainTab === "ops") {
+          if (state.activeMainTab === "admin" || state.activeMainTab === "ops" || state.activeMainTab === "reports") {
             setMainTab("dashboard");
           }
           dom.adminUserPanel.classList.add("hidden");
@@ -1696,12 +2206,19 @@
 
       async function loadProjects(silent = false) {
         const data = await requestJson(`/api/projects?as_of=${todayISO()}`);
-        state.projects = data.projects || [];
-        rebuildIndexes();
-        refreshSelectors();
-        renderDashboard();
+        const nextProjects = data.projects || [];
+        const nextFingerprint = JSON.stringify(nextProjects);
+        const changed = nextFingerprint !== state.projectsFingerprint;
+        if (changed) {
+          state.projects = nextProjects;
+          state.projectsFingerprint = nextFingerprint;
+          rebuildIndexes();
+          refreshSelectors();
+          renderDashboard();
+        }
         if (!silent) {
-          showStatus(`刷新成功：${new Date().toLocaleTimeString()}`, "ok");
+          const suffix = changed ? "（已更新）" : "（无变化）";
+          showStatus(`刷新成功：${new Date().toLocaleTimeString()} ${suffix}`, "ok");
         }
       }
 
@@ -1721,6 +2238,10 @@
       async function refreshAll(silent = false) {
         await loadProjects(silent);
         await loadUsersAndParticipants();
+        if (state.me && state.me.role === "admin") {
+          await runDueReportDispatch();
+          await loadReportDispatchPreferences();
+        }
       }
 
       async function loadMeFromToken() {
@@ -1802,8 +2323,10 @@
       function handleLogout() {
         clearAuth();
         state.projects = [];
+        state.projectsFingerprint = "";
         state.users = [];
         state.participantOptions = [];
+        state.reportDispatchMap = new Map();
         state.activeMainTab = "dashboard";
         state.activeOpsTab = "project";
         state.me = null;
@@ -2055,70 +2578,137 @@
         }
       }
 
+      function buildProgressPayload(goal, values) {
+        if (!goal) {
+          throw new Error("请选择可更新目标");
+        }
+
+        const note = (values.note || "").trim();
+        const riskNote = (values.risk_note || "").trim();
+        const progressState = normalizeProgressState(values.progress_state || "normal");
+
+        let progressPercent = null;
+        let remainingDi = null;
+        let requirementTotalCount = null;
+        let requirementDoneCount = null;
+
+        if (goal.goal_type === "issue") {
+          remainingDi = Number(values.remaining_di);
+          const latestRemaining = Number(goal.remaining_di ?? goal.issue_total_di ?? 0);
+          if (Number.isNaN(remainingDi) || remainingDi < 0) {
+            throw new Error("剩余 DI 不能小于 0");
+          }
+          if (remainingDi > latestRemaining && !note) {
+            throw new Error("剩余 DI 增加时必须填写备注");
+          }
+        } else if (goal.goal_type === "task") {
+          progressPercent = Number(values.progress_percent);
+          if (Number.isNaN(progressPercent) || progressPercent < 0 || progressPercent > 100) {
+            throw new Error("事务型目标完成率必须在 0-100");
+          }
+          if (progressPercent < Number(goal.progress_percent || 0) && !note) {
+            throw new Error("回退进度必须填写备注");
+          }
+        } else {
+          const totalRaw = String(values.requirement_total_count || "").trim();
+          const doneRaw = String(values.requirement_done_count || "").trim();
+          if (totalRaw === "" || doneRaw === "") {
+            throw new Error("需求型目标请填写总需求数和已完成需求数");
+          }
+          requirementTotalCount = Number(totalRaw);
+          requirementDoneCount = Number(doneRaw);
+
+          if (Number.isNaN(requirementTotalCount) || requirementTotalCount < 0 || !Number.isInteger(requirementTotalCount)) {
+            throw new Error("需求总数必须为大于等于 0 的整数");
+          }
+          if (Number.isNaN(requirementDoneCount) || requirementDoneCount < 0 || !Number.isInteger(requirementDoneCount)) {
+            throw new Error("已完成需求数必须为大于等于 0 的整数");
+          }
+          if (requirementDoneCount > requirementTotalCount) {
+            throw new Error("已完成需求数不能大于总需求数");
+          }
+
+          const computedProgress = requirementTotalCount === 0 ? 0 : (requirementDoneCount * 100 / requirementTotalCount);
+          if (computedProgress < Number(goal.progress_percent || 0) && !note) {
+            throw new Error("回退进度必须填写备注");
+          }
+        }
+
+        return {
+          progress_percent: progressPercent,
+          remaining_di: remainingDi,
+          requirement_total_count: requirementTotalCount,
+          requirement_done_count: requirementDoneCount,
+          progress_state: progressState,
+          risk_note: riskNote || null,
+          note: note || null,
+        };
+      }
+
+      async function handleProjectCardProgress(event) {
+        const form = event.target.closest(".project-update-form");
+        if (!form) return;
+        event.preventDefault();
+        try {
+          const goalId = Number(form.querySelector("select[name='goal_id']").value);
+          const goal = state.goalMap.get(goalId);
+          const payload = buildProgressPayload(goal, {
+            progress_percent: form.querySelector("input[name='progress_percent']").value,
+            remaining_di: form.querySelector("input[name='remaining_di']").value,
+            requirement_total_count: form.querySelector("input[name='requirement_total_count']").value,
+            requirement_done_count: form.querySelector("input[name='requirement_done_count']").value,
+            progress_state: form.querySelector("select[name='progress_state']").value,
+            risk_note: form.querySelector("textarea[name='risk_note']").value,
+            note: form.querySelector("textarea[name='note']").value,
+          });
+
+          await requestJson("/api/progress", {
+            method: "POST",
+            body: JSON.stringify({
+              goal_id: goalId,
+              date: form.querySelector("input[name='date']").value,
+              updated_by: form.querySelector("input[name='updated_by']").value.trim() || "web_user",
+              ...payload,
+            }),
+          });
+
+          form.querySelector("textarea[name='note']").value = "";
+          await refreshAll(true);
+          showStatus("项目进度更新成功", "ok");
+        } catch (err) {
+          showStatus(err.message, "error");
+        }
+      }
+
+      function handleDashboardFormChange(event) {
+        if (!event.target.matches(".project-goal-select")) return;
+        const form = event.target.closest(".project-update-form");
+        if (!form) return;
+        syncProjectUpdateForm(form);
+      }
+
       async function handleProgress(event) {
         event.preventDefault();
         try {
           const goalId = Number(dom.progressGoalId.value);
           const goal = state.goalMap.get(goalId);
-          const note = dom.progressNote.value.trim();
-
-          let progressPercent = null;
-          let remainingDi = null;
-          let requirementTotalCount = null;
-          let requirementDoneCount = null;
-          if (goal && goal.goal_type === "issue") {
-            remainingDi = Number(dom.progressRemainingDi.value);
-            const latestRemaining = Number(goal.remaining_di ?? goal.issue_total_di ?? 0);
-            if (Number.isNaN(remainingDi) || remainingDi < 0) {
-              throw new Error("剩余 DI 不能小于 0");
-            }
-            if (remainingDi > latestRemaining && !note) {
-              throw new Error("剩余 DI 增加时必须填写备注");
-            }
-          } else if (goal && goal.goal_type === "task") {
-            progressPercent = Number(dom.progressValue.value);
-            if (Number.isNaN(progressPercent) || progressPercent < 0 || progressPercent > 100) {
-              throw new Error("事务型目标完成率必须在 0-100");
-            }
-            if (progressPercent < Number(goal.progress_percent || 0) && !note) {
-              throw new Error("回退进度必须填写备注");
-            }
-          } else {
-            const totalRaw = dom.progressRequirementTotal.value.trim();
-            const doneRaw = dom.progressRequirementDone.value.trim();
-            if (totalRaw === "" || doneRaw === "") {
-              throw new Error("需求型目标请填写总需求数和已完成需求数");
-            }
-            requirementTotalCount = Number(totalRaw);
-            requirementDoneCount = Number(doneRaw);
-
-            if (Number.isNaN(requirementTotalCount) || requirementTotalCount < 0 || !Number.isInteger(requirementTotalCount)) {
-              throw new Error("需求总数必须为大于等于 0 的整数");
-            }
-            if (Number.isNaN(requirementDoneCount) || requirementDoneCount < 0 || !Number.isInteger(requirementDoneCount)) {
-              throw new Error("已完成需求数必须为大于等于 0 的整数");
-            }
-            if (requirementDoneCount > requirementTotalCount) {
-              throw new Error("已完成需求数不能大于总需求数");
-            }
-
-            const computedProgress = requirementTotalCount === 0 ? 0 : (requirementDoneCount * 100 / requirementTotalCount);
-            if (goal && computedProgress < Number(goal.progress_percent || 0) && !note) {
-              throw new Error("回退进度必须填写备注");
-            }
-          }
+          const payload = buildProgressPayload(goal, {
+            progress_percent: dom.progressValue.value,
+            remaining_di: dom.progressRemainingDi.value,
+            requirement_total_count: dom.progressRequirementTotal.value,
+            requirement_done_count: dom.progressRequirementDone.value,
+            progress_state: goal ? goal.progress_state : "normal",
+            risk_note: goal ? (goal.risk_note || "") : "",
+            note: dom.progressNote.value,
+          });
 
           await requestJson("/api/progress", {
             method: "POST",
             body: JSON.stringify({
               goal_id: goalId,
               date: dom.progressDate.value,
-              progress_percent: progressPercent,
-              remaining_di: remainingDi,
-              requirement_total_count: requirementTotalCount,
-              requirement_done_count: requirementDoneCount,
               updated_by: dom.progressUpdatedBy.value.trim(),
-              note: note || null,
+              ...payload,
             }),
           });
 
@@ -2159,6 +2749,17 @@
         dom.progressRequirementTotal.value = "";
         dom.progressRequirementDone.value = "";
         dom.progressUpdatedBy.value = "web_user";
+        dom.reportPeriod.value = "daily";
+        dom.reportDate.value = todayISO();
+        dom.reportSubject.value = "";
+        dom.reportRecipients.value = "";
+        dom.reportMarkdown.value = "";
+        dom.reportSkipToday.checked = false;
+        dom.dispatchPeriod.value = "daily";
+        dom.dispatchSendTime.value = "18:00";
+        dom.dispatchRecipients.value = "";
+        dom.dispatchEnabled.checked = false;
+        dom.dispatchSummary.textContent = "尚未加载配置。";
         dom.newRole.value = "owner";
         toggleParticipantField();
         syncGoalTypeFields();
@@ -2183,6 +2784,11 @@
         dom.phaseEditForm.addEventListener("submit", handleUpdatePhase);
         dom.goalEditForm.addEventListener("submit", handleUpdateGoal);
         dom.progressForm.addEventListener("submit", handleProgress);
+        dom.dashboard.addEventListener("submit", handleProjectCardProgress);
+        dom.dashboard.addEventListener("change", handleDashboardFormChange);
+        dom.reportPreviewForm.addEventListener("submit", handleReportPreview);
+        dom.reportDispatchForm.addEventListener("submit", handleReportDispatchSave);
+        dom.reportSendNowBtn.addEventListener("click", handleReportSendNow);
         dom.phaseDeleteBtn.addEventListener("click", handleDeletePhase);
         dom.goalDeleteBtn.addEventListener("click", handleDeleteGoal);
 
@@ -2197,7 +2803,9 @@
         dom.goalEditId.addEventListener("change", syncGoalEditForm);
         dom.goalEditType.addEventListener("change", syncGoalEditTypeFields);
         dom.goalEditRequirementPriority.addEventListener("change", syncGoalEditTypeFields);
+        dom.dispatchPeriod.addEventListener("change", syncDispatchForm);
         dom.tabDashboardBtn.addEventListener("click", () => setMainTab("dashboard"));
+        dom.tabReportsBtn.addEventListener("click", () => setMainTab("reports"));
         dom.tabOpsBtn.addEventListener("click", () => setMainTab("ops"));
         dom.tabAdminBtn.addEventListener("click", () => setMainTab("admin"));
         dom.opsProjectBtn.addEventListener("click", () => setOpsTab("project"));

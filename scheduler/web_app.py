@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
 
@@ -16,7 +16,10 @@ from scheduler.db import create_session_factory, init_db, session_scope
 from scheduler.models import Participant, UserAccount
 from scheduler.repositories import GoalSnapshot, Repository
 from scheduler.services.auth_service import AuthService, AuthClaims
+from scheduler.services.email_service import EmailService
 from scheduler.services.progress_service import ProgressService
+from scheduler.services.report_dispatch_service import ReportDispatchService
+from scheduler.services.report_service import ReportService
 from scheduler.services.project_service import ProjectService
 from scheduler.utils import parse_iso_date, weighted_progress
 
@@ -85,8 +88,24 @@ class ProgressUpdateInput(BaseModel):
     remaining_di: Optional[float] = None
     requirement_total_count: Optional[int] = None
     requirement_done_count: Optional[int] = None
+    progress_state: str = Field("normal", min_length=4, max_length=20)
+    risk_note: Optional[str] = None
     updated_by: str = Field("web_ui", min_length=1)
     note: Optional[str] = None
+
+
+class ReportSendNowInput(BaseModel):
+    period: str = Field(..., min_length=5)
+    run_date: Optional[date] = None
+    markdown: Optional[str] = None
+    recipients: Optional[list[str]] = None
+    skip_today_schedule: bool = False
+
+
+class ReportDispatchPreferenceUpdateInput(BaseModel):
+    send_time: str = Field(..., min_length=5, max_length=5)
+    recipients: list[str] = Field(default_factory=list)
+    enabled: bool = True
 
 
 class AuthBootstrapInput(BaseModel):
@@ -201,6 +220,8 @@ def _goal_to_payload(item: GoalSnapshot, user: UserAccount) -> dict:
         "remaining_di": item.remaining_di,
         "requirement_total_count": item.requirement_total_count,
         "requirement_done_count": item.requirement_done_count,
+        "progress_state": item.progress_state,
+        "risk_note": item.risk_note,
         "editable": _goal_is_editable(item, user),
     }
 
@@ -213,6 +234,16 @@ def _phase_to_payload(phase) -> dict:
         "objective": phase.objective,
         "order_index": phase.order_index,
     }
+
+
+def _build_report_dispatch_service(repo: Repository, settings: Settings) -> ReportDispatchService:
+    email_service = EmailService(settings)
+    report_service = ReportService(
+        repo=repo,
+        email_service=email_service,
+        report_output_dir=settings.expanded_report_output_dir,
+    )
+    return ReportDispatchService(repo=repo, report_service=report_service, settings=settings)
 
 
 def _project_payload(
@@ -465,6 +496,97 @@ def create_app(settings: Settings) -> FastAPI:
                 ]
             }
 
+    @app.get("/api/reports/preview")
+    def preview_report(
+        period: str = Query(..., description="daily|weekly|monthly"),
+        run_date: Optional[str] = Query(None, alias="date", description="YYYY-MM-DD"),
+        authorization: Optional[str] = Header(None),
+    ) -> dict:
+        target_date = _parse_as_of(run_date)
+        with session_scope(session_factory) as session:
+            repo = Repository(session)
+            user, _, _ = _require_auth_user(repo, auth_service, authorization)
+            _ensure_admin(user)
+            service = _build_report_dispatch_service(repo, settings)
+            try:
+                return service.preview(period=period, run_date=target_date)
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/api/reports/send-now")
+    def send_report_now(payload: ReportSendNowInput, authorization: Optional[str] = Header(None)) -> dict:
+        with session_scope(session_factory) as session:
+            repo = Repository(session)
+            user, _, _ = _require_auth_user(repo, auth_service, authorization)
+            _ensure_admin(user)
+            service = _build_report_dispatch_service(repo, settings)
+            target_date = payload.run_date if payload.run_date is not None else date.today()
+            try:
+                result, recipients = service.send_now(
+                    period=payload.period,
+                    run_date=target_date,
+                    recipients=payload.recipients,
+                    markdown=payload.markdown,
+                    skip_today_schedule=payload.skip_today_schedule,
+                )
+                preview = service.preview(period=payload.period, run_date=target_date)
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+            return {
+                "report_id": result.report_id,
+                "status": result.status,
+                "markdown_path": str(result.markdown_path),
+                "subject": preview["subject"],
+                "recipients": recipients,
+                "skip_today_schedule": payload.skip_today_schedule,
+            }
+
+    @app.get("/api/report-dispatch/preferences")
+    def list_report_dispatch_preferences(authorization: Optional[str] = Header(None)) -> dict:
+        with session_scope(session_factory) as session:
+            repo = Repository(session)
+            user, _, _ = _require_auth_user(repo, auth_service, authorization)
+            _ensure_admin(user)
+            service = _build_report_dispatch_service(repo, settings)
+            return {
+                "preferences": service.list_preferences(),
+            }
+
+    @app.put("/api/report-dispatch/preferences/{period}")
+    def update_report_dispatch_preference(
+        period: str,
+        payload: ReportDispatchPreferenceUpdateInput,
+        authorization: Optional[str] = Header(None),
+    ) -> dict:
+        with session_scope(session_factory) as session:
+            repo = Repository(session)
+            user, _, _ = _require_auth_user(repo, auth_service, authorization)
+            _ensure_admin(user)
+            service = _build_report_dispatch_service(repo, settings)
+            try:
+                pref = service.update_preference(
+                    period=period,
+                    send_time=payload.send_time,
+                    recipients=payload.recipients,
+                    enabled=payload.enabled,
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            return {"preference": pref}
+
+    @app.post("/api/report-dispatch/run-due")
+    def run_due_report_dispatch(authorization: Optional[str] = Header(None)) -> dict:
+        with session_scope(session_factory) as session:
+            repo = Repository(session)
+            user, _, _ = _require_auth_user(repo, auth_service, authorization)
+            _ensure_admin(user)
+            service = _build_report_dispatch_service(repo, settings)
+            runs = service.run_due(now=datetime.now())
+            return {
+                "runs": [{"period": item.period, "status": item.status} for item in runs],
+            }
+
     @app.get("/api/projects")
     def list_projects(
         as_of: Optional[str] = Query(None, description="YYYY-MM-DD"),
@@ -647,6 +769,8 @@ def create_app(settings: Settings) -> FastAPI:
                 "remaining_di": goal.issue_total_di if goal.goal_type == GOAL_TYPE_ISSUE else None,
                 "requirement_total_count": None,
                 "requirement_done_count": None,
+                "progress_state": "normal",
+                "risk_note": None,
             }
 
     @app.put("/api/goals/{goal_id}")
@@ -699,6 +823,8 @@ def create_app(settings: Settings) -> FastAPI:
                 "remaining_di": latest.remaining_di if latest is not None else goal.issue_total_di,
                 "requirement_total_count": latest.requirement_total_count if latest is not None else None,
                 "requirement_done_count": latest.requirement_done_count if latest is not None else None,
+                "progress_state": latest.progress_state if latest is not None else "normal",
+                "risk_note": latest.risk_note if latest is not None else None,
             }
 
     @app.delete("/api/goals/{goal_id}", status_code=204, response_class=Response)
@@ -745,6 +871,8 @@ def create_app(settings: Settings) -> FastAPI:
                     remaining_di=payload.remaining_di,
                     requirement_total_count=payload.requirement_total_count,
                     requirement_done_count=payload.requirement_done_count,
+                    progress_state=payload.progress_state,
+                    risk_note=payload.risk_note,
                     updated_by=payload.updated_by,
                     note=payload.note,
                 )
@@ -763,6 +891,8 @@ def create_app(settings: Settings) -> FastAPI:
                 "remaining_di": update.remaining_di,
                 "requirement_total_count": update.requirement_total_count,
                 "requirement_done_count": update.requirement_done_count,
+                "progress_state": update.progress_state,
+                "risk_note": update.risk_note,
                 "note": update.note,
                 "updated_by": update.updated_by,
                 "project_id": phase.project_id,

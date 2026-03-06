@@ -336,6 +336,8 @@ def test_web_api_task_goal_progress_by_percent(settings):
             "goal_id": goal["id"],
             "date": date.today().isoformat(),
             "progress_percent": 55,
+            "progress_state": "delayed",
+            "risk_note": "外部依赖延期",
             "updated_by": "web_tester",
             "note": None,
         },
@@ -344,6 +346,8 @@ def test_web_api_task_goal_progress_by_percent(settings):
     assert progress_resp.json()["progress_percent"] == 55.0
     assert progress_resp.json()["requirement_total_count"] is None
     assert progress_resp.json()["requirement_done_count"] is None
+    assert progress_resp.json()["progress_state"] == "delayed"
+    assert progress_resp.json()["risk_note"] == "外部依赖延期"
 
     dashboard_resp = client.get(
         f"/api/projects?as_of={date.today().isoformat()}",
@@ -353,6 +357,8 @@ def test_web_api_task_goal_progress_by_percent(settings):
     assert dashboard_goal["goal_type"] == "task"
     assert dashboard_goal["progress_percent"] == 55.0
     assert dashboard_goal["note"] == "跟进客户对账与回执"
+    assert dashboard_goal["progress_state"] == "delayed"
+    assert dashboard_goal["risk_note"] == "外部依赖延期"
 
 
 def test_admin_can_update_project_and_participants(settings):
@@ -436,6 +442,126 @@ def test_admin_can_update_project_and_participants(settings):
     )
     assert remove_owner_resp.status_code == 400
     assert "存在负责人目标" in remove_owner_resp.json()["detail"]
+
+
+def test_report_preview_dispatch_preferences_and_send_now(settings):
+    app = create_app(settings)
+    client = TestClient(app)
+    admin_headers = _bootstrap_admin(client)
+
+    project_resp = client.post(
+        "/api/projects",
+        headers=admin_headers,
+        json={
+            "name": "Report API",
+            "deadline": _iso(30),
+            "participants": [{"name": "Owner", "email": "owner@example.com"}],
+        },
+    )
+    assert project_resp.status_code == 201
+    project = project_resp.json()
+
+    phase_resp = client.post(
+        "/api/phases",
+        headers=admin_headers,
+        json={
+            "project_id": project["id"],
+            "name": "Report Phase",
+            "objective": "Report Objective",
+        },
+    )
+    assert phase_resp.status_code == 201
+    phase = phase_resp.json()
+
+    owner_id = project["participants"][0]["id"]
+    goal_resp = client.post(
+        "/api/goals",
+        headers=admin_headers,
+        json={
+            "phase_id": phase["id"],
+            "title": "Report Goal",
+            "owner_participant_id": owner_id,
+            "milestone_date": _iso(2),
+            "deadline": _iso(5),
+            "weight": 1,
+        },
+    )
+    assert goal_resp.status_code == 201
+    goal = goal_resp.json()
+
+    progress_resp = client.post(
+        "/api/progress",
+        headers=admin_headers,
+        json={
+            "goal_id": goal["id"],
+            "date": date.today().isoformat(),
+            "requirement_total_count": 20,
+            "requirement_done_count": 6,
+            "progress_state": "delayed",
+            "risk_note": "供应商联调延迟",
+            "updated_by": "web_tester",
+            "note": None,
+        },
+    )
+    assert progress_resp.status_code == 201
+
+    preview_resp = client.get(
+        f"/api/reports/preview?period=daily&date={date.today().isoformat()}",
+        headers=admin_headers,
+    )
+    assert preview_resp.status_code == 200
+    preview = preview_resp.json()
+    assert preview["period"] == "daily"
+    assert "项目日报" in preview["subject"]
+    assert "owner@example.com" in preview["default_recipients"]
+    assert isinstance(preview["markdown"], str) and preview["markdown"]
+    assert "目标明细（汇总）" in preview["markdown"]
+    assert "风险项目" in preview["markdown"]
+    assert "<span style=\"color:#c62828;font-weight:700;\">30.00%</span>" in preview["markdown"]
+    assert "进度落后；供应商联调延迟" in preview["markdown"]
+
+    update_pref = client.put(
+        "/api/report-dispatch/preferences/daily",
+        headers=admin_headers,
+        json={
+            "send_time": "18:30",
+            "recipients": ["owner@example.com"],
+            "enabled": True,
+        },
+    )
+    assert update_pref.status_code == 200
+    pref = update_pref.json()["preference"]
+    assert pref["period"] == "daily"
+    assert pref["send_time"] == "18:30"
+    assert pref["recipients"] == ["owner@example.com"]
+    assert pref["enabled"] is True
+
+    list_pref = client.get("/api/report-dispatch/preferences", headers=admin_headers)
+    assert list_pref.status_code == 200
+    daily_pref = next(item for item in list_pref.json()["preferences"] if item["period"] == "daily")
+    assert daily_pref["send_time"] == "18:30"
+
+    send_now_resp = client.post(
+        "/api/reports/send-now",
+        headers=admin_headers,
+        json={
+            "period": "daily",
+            "run_date": date.today().isoformat(),
+            "markdown": "# 手工日报\n\n测试内容。",
+            "recipients": ["owner@example.com"],
+            "skip_today_schedule": True,
+        },
+    )
+    assert send_now_resp.status_code == 200
+    send_now = send_now_resp.json()
+    assert send_now["status"] == "failed"
+    assert send_now["skip_today_schedule"] is True
+    assert send_now["recipients"] == ["owner@example.com"]
+
+    list_pref_after_send = client.get("/api/report-dispatch/preferences", headers=admin_headers)
+    assert list_pref_after_send.status_code == 200
+    daily_after = next(item for item in list_pref_after_send.json()["preferences"] if item["period"] == "daily")
+    assert daily_after["skip_once_date"] == date.today().isoformat()
 
 
 def test_owner_permissions(settings):
