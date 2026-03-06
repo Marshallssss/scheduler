@@ -82,6 +82,7 @@ class ProjectService:
         requirement_priority: Optional[int] = None,
         issue_module: Optional[str] = None,
         issue_total_di: Optional[float] = None,
+        issue_target_di: Optional[float] = None,
         note: Optional[str] = None,
     ):
         return self._create_or_update_goal(
@@ -96,6 +97,7 @@ class ProjectService:
             requirement_priority=requirement_priority,
             issue_module=issue_module,
             issue_total_di=issue_total_di,
+            issue_target_di=issue_target_di,
             goal_id=None,
         )
 
@@ -146,6 +148,7 @@ class ProjectService:
         requirement_priority: Optional[int] = None,
         issue_module: Optional[str] = None,
         issue_total_di: Optional[float] = None,
+        issue_target_di: Optional[float] = None,
     ):
         goal = self.repo.get_goal(goal_id)
         if goal is None:
@@ -161,16 +164,19 @@ class ProjectService:
         use_requirement_priority = goal.requirement_priority if requirement_priority is None else requirement_priority
         use_issue_module = goal.issue_module if issue_module is None else issue_module
         use_issue_total_di = goal.issue_total_di if issue_total_di is None else issue_total_di
+        use_issue_target_di = goal.issue_target_di if issue_target_di is None else issue_target_di
 
         if use_goal_type == GOAL_TYPE_REQUIREMENT:
             use_issue_module = None
             use_issue_total_di = None
+            use_issue_target_di = None
         if use_goal_type == GOAL_TYPE_ISSUE:
             use_requirement_priority = None
         if use_goal_type == GOAL_TYPE_TASK:
             use_requirement_priority = None
             use_issue_module = None
             use_issue_total_di = None
+            use_issue_target_di = None
 
         updated_goal = self._create_or_update_goal(
             phase_id=goal.phase_id,
@@ -184,6 +190,7 @@ class ProjectService:
             requirement_priority=use_requirement_priority,
             issue_module=use_issue_module,
             issue_total_di=use_issue_total_di,
+            issue_target_di=use_issue_target_di,
             goal_id=goal_id,
         )
         return updated_goal
@@ -208,6 +215,7 @@ class ProjectService:
         requirement_priority: Optional[int],
         issue_module: Optional[str],
         issue_total_di: Optional[float],
+        issue_target_di: Optional[float],
         goal_id: Optional[int],
     ):
         phase = self.repo.get_phase(phase_id)
@@ -244,14 +252,21 @@ class ProjectService:
             use_weight = default_weight if weight is None else weight
             use_issue_module = None
             use_issue_total_di = None
+            use_issue_target_di = None
         elif normalized_goal_type == GOAL_TYPE_ISSUE:
             if issue_total_di is None or issue_total_di <= 0:
                 raise ValueError("问题单型目标必须提供大于 0 的总 DI")
             if not normalized_issue_module:
                 raise ValueError("问题单型目标必须填写模块")
+            normalized_issue_target_di = 0.0 if issue_target_di is None else float(issue_target_di)
+            if normalized_issue_target_di < 0:
+                raise ValueError("问题单目标 DI 不能小于 0")
+            if normalized_issue_target_di >= issue_total_di:
+                raise ValueError("问题单目标 DI 必须小于总 DI")
             use_weight = 1.0 if weight is None else weight
             use_issue_module = normalized_issue_module
             use_issue_total_di = issue_total_di
+            use_issue_target_di = normalized_issue_target_di
             requirement_priority = None
         else:
             if note is None or not note.strip():
@@ -260,6 +275,7 @@ class ProjectService:
             requirement_priority = None
             use_issue_module = None
             use_issue_total_di = None
+            use_issue_target_di = None
 
         if use_weight <= 0:
             raise ValueError("权重必须大于 0")
@@ -279,6 +295,7 @@ class ProjectService:
                 requirement_priority=requirement_priority,
                 issue_module=use_issue_module,
                 issue_total_di=use_issue_total_di,
+                issue_target_di=use_issue_target_di,
             )
 
         goal = self.repo.get_goal(goal_id)
@@ -294,6 +311,7 @@ class ProjectService:
         goal.requirement_priority = requirement_priority
         goal.issue_module = use_issue_module
         goal.issue_total_di = use_issue_total_di
+        goal.issue_target_di = use_issue_target_di
         self.repo.session.flush()
         return goal
 

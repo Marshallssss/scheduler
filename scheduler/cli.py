@@ -175,6 +175,7 @@ def goal_add(
     requirement_priority: Optional[int] = typer.Option(None, "--requirement-priority", help="需求优先级 1-5"),
     issue_module: Optional[str] = typer.Option(None, "--issue-module", help="问题单所属模块"),
     issue_total_di: Optional[float] = typer.Option(None, "--issue-total-di", help="问题单总 DI"),
+    issue_target_di: Optional[float] = typer.Option(None, "--issue-target-di", help="问题单目标 DI"),
     note: Optional[str] = typer.Option(None, "--note", help="目标备注（task 类型必填）"),
     weight: Optional[float] = typer.Option(None, "--weight", help="权重，默认 1.0"),
 ) -> None:
@@ -208,6 +209,7 @@ def goal_add(
         use_requirement_priority = requirement_priority
         use_issue_module = issue_module
         use_issue_total_di = issue_total_di
+        use_issue_target_di = issue_target_di
         use_note = note
         if use_goal_type == GOAL_TYPE_REQUIREMENT:
             if use_requirement_priority is None:
@@ -215,15 +217,19 @@ def goal_add(
                 use_requirement_priority = int(priority_raw) if priority_raw.strip() else None
             use_issue_module = None
             use_issue_total_di = None
+            use_issue_target_di = None
         elif use_goal_type == GOAL_TYPE_ISSUE:
             if use_issue_module is None:
                 use_issue_module = typer.prompt("问题单所属模块")
             if use_issue_total_di is None:
                 use_issue_total_di = float(typer.prompt("问题单总 DI"))
+            if use_issue_target_di is None:
+                use_issue_target_di = float(typer.prompt("问题单目标 DI", default="0"))
         elif use_goal_type == GOAL_TYPE_TASK:
             use_requirement_priority = None
             use_issue_module = None
             use_issue_total_di = None
+            use_issue_target_di = None
             if use_note is None or not use_note.strip():
                 use_note = typer.prompt("事务型目标备注（明确事务内容）").strip()
 
@@ -238,6 +244,7 @@ def goal_add(
             requirement_priority=use_requirement_priority,
             issue_module=use_issue_module,
             issue_total_di=use_issue_total_di,
+            issue_target_di=use_issue_target_di,
             note=use_note,
         )
         typer.echo(
@@ -273,9 +280,11 @@ def progress_collect(
                 default_remaining = snapshot.remaining_di
                 if default_remaining is None:
                     default_remaining = snapshot.goal.issue_total_di if snapshot.goal.issue_total_di is not None else 0.0
+                target_di = snapshot.goal.issue_target_di if snapshot.goal.issue_target_di is not None else 0.0
+                di_gap = default_remaining - target_di
                 prompt = (
                     f"[{snapshot.goal.id}] {snapshot.goal.title} "
-                    f"(当前 {snapshot.progress:.2f}%, 剩余DI {default_remaining:.2f})"
+                    f"(当前 {snapshot.progress:.2f}%, 剩余DI {default_remaining:.2f}, 目标DI {target_di:.2f}, 差值 {di_gap:.2f})"
                 )
                 raw_remaining = typer.prompt(prompt, default=str(default_remaining))
                 try:

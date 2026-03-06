@@ -66,13 +66,19 @@ class ProgressService:
         if goal.goal_type == GOAL_TYPE_ISSUE:
             if goal.issue_total_di is None or goal.issue_total_di <= 0:
                 raise ValueError("问题单型目标缺少总 DI，无法计算进度")
+            issue_target_di = float(goal.issue_target_di or 0.0)
+            if issue_target_di < 0:
+                raise ValueError("问题单型目标缺少合法目标 DI，无法计算进度")
+            if issue_target_di >= goal.issue_total_di:
+                raise ValueError("问题单型目标的目标 DI 必须小于总 DI")
+            issue_span_di = goal.issue_total_di - issue_target_di
 
             if remaining_di is None:
                 if progress_percent is None:
                     raise ValueError("问题单型目标必须填写剩余 DI")
                 if progress_percent < 0 or progress_percent > 100:
                     raise ValueError("完成率必须在 0-100")
-                remaining_di = round((100 - progress_percent) * goal.issue_total_di / 100, 2)
+                remaining_di = round(goal.issue_total_di - progress_percent * issue_span_di / 100, 2)
 
             if remaining_di < 0:
                 raise ValueError("剩余 DI 不能小于 0")
@@ -81,7 +87,7 @@ class ProgressService:
             if remaining_di > latest_remaining and clean_note is None:
                 raise ValueError("剩余 DI 增加时必须填写备注")
 
-            computed_progress = round(max(0.0, min(100.0, (goal.issue_total_di - remaining_di) * 100 / goal.issue_total_di)), 2)
+            computed_progress = round(max(0.0, min(100.0, (goal.issue_total_di - remaining_di) * 100 / issue_span_di)), 2)
             requirement_total_count = None
             requirement_done_count = None
         elif goal.goal_type == GOAL_TYPE_REQUIREMENT:

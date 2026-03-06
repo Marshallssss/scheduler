@@ -123,15 +123,16 @@ def test_issue_goal_tracks_progress_by_remaining_di(session):
         goal_type="issue",
         issue_module="支付",
         issue_total_di=50,
+        issue_target_di=10,
     )
 
     svc = ProgressService(repo)
     update = svc.record_progress(goal.id, base, progress_percent=None, remaining_di=20, updated_by="pm")
-    assert update.progress_percent == 60.0
+    assert update.progress_percent == 75.0
     assert update.remaining_di == 20
 
     summary = svc.build_project_progress(project.id, base)
-    assert summary.progress_percent == 60.0
+    assert summary.progress_percent == 75.0
 
 
 def test_issue_goal_remaining_di_increase_requires_note(session):
@@ -155,6 +156,7 @@ def test_issue_goal_remaining_di_increase_requires_note(session):
         goal_type="issue",
         issue_module="订单",
         issue_total_di=30,
+        issue_target_di=5,
     )
 
     svc = ProgressService(repo)
@@ -164,6 +166,35 @@ def test_issue_goal_remaining_di_increase_requires_note(session):
         svc.record_progress(goal.id, base, progress_percent=None, remaining_di=12, updated_by="pm")
 
     svc.record_progress(goal.id, base, progress_percent=None, remaining_di=12, updated_by="pm", note="新增问题单")
+
+
+def test_issue_goal_reaches_100_when_remaining_di_below_target(session):
+    base = date(2026, 3, 2)
+    repo = Repository(session)
+
+    project = repo.create_project(
+        name="Issue target",
+        deadline=base + timedelta(days=20),
+        participants=[("A", "a@example.com")],
+    )
+    phase = repo.add_phase(project.id, name="P1", objective="Obj")
+    owner = repo.list_project_participants(project.id)[0]
+    goal = repo.add_goal(
+        phase_id=phase.id,
+        title="issue-goal",
+        owner_participant_id=owner.id,
+        milestone_date=base + timedelta(days=1),
+        deadline=base + timedelta(days=5),
+        weight=1,
+        goal_type="issue",
+        issue_module="支付",
+        issue_total_di=80,
+        issue_target_di=30,
+    )
+
+    svc = ProgressService(repo)
+    update = svc.record_progress(goal.id, base, progress_percent=None, remaining_di=28, updated_by="pm")
+    assert update.progress_percent == 100.0
 
 
 def test_task_goal_tracks_progress_by_manual_percent(session):
@@ -258,5 +289,6 @@ def test_issue_goal_default_weight_is_not_di(session):
         goal_type="issue",
         issue_module="订单",
         issue_total_di=99,
+        issue_target_di=0,
     )
     assert goal.weight == 1.0

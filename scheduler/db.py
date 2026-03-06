@@ -47,6 +47,8 @@ def _ensure_sqlite_columns(engine: Engine) -> None:
             conn.exec_driver_sql("ALTER TABLE goals ADD COLUMN issue_module TEXT")
         if "issue_total_di" not in goal_columns:
             conn.exec_driver_sql("ALTER TABLE goals ADD COLUMN issue_total_di FLOAT")
+        if "issue_target_di" not in goal_columns:
+            conn.exec_driver_sql("ALTER TABLE goals ADD COLUMN issue_target_di FLOAT")
         if "note" not in goal_columns:
             conn.exec_driver_sql("ALTER TABLE goals ADD COLUMN note TEXT")
 
@@ -89,6 +91,7 @@ def _rebuild_sqlite_goals_table_with_task_constraint(conn) -> None:
             requirement_priority INTEGER,
             issue_module VARCHAR(120),
             issue_total_di FLOAT,
+            issue_target_di FLOAT,
             status VARCHAR(20) NOT NULL DEFAULT 'active',
             CONSTRAINT ck_goals_weight_positive CHECK (weight > 0),
             CONSTRAINT ck_goals_status CHECK (status in ('active', 'completed')),
@@ -96,7 +99,8 @@ def _rebuild_sqlite_goals_table_with_task_constraint(conn) -> None:
             CONSTRAINT ck_goals_requirement_priority CHECK (
                 requirement_priority is null or (requirement_priority >= 1 and requirement_priority <= 5)
             ),
-            CONSTRAINT ck_goals_issue_total_di_positive CHECK (issue_total_di is null or issue_total_di > 0)
+            CONSTRAINT ck_goals_issue_total_di_positive CHECK (issue_total_di is null or issue_total_di > 0),
+            CONSTRAINT ck_goals_issue_target_di_non_negative CHECK (issue_target_di is null or issue_target_di >= 0)
         )
         """
     )
@@ -104,11 +108,12 @@ def _rebuild_sqlite_goals_table_with_task_constraint(conn) -> None:
         """
         INSERT INTO goals__new (
             id, phase_id, title, note, owner_participant_id, weight, milestone_date, deadline,
-            goal_type, requirement_priority, issue_module, issue_total_di, status
+            goal_type, requirement_priority, issue_module, issue_total_di, issue_target_di, status
         )
         SELECT
             id, phase_id, title, note, owner_participant_id, weight, milestone_date, deadline,
-            goal_type, requirement_priority, issue_module, issue_total_di, status
+            goal_type, requirement_priority, issue_module, issue_total_di,
+            COALESCE(issue_target_di, 0), status
         FROM goals
         """
     )

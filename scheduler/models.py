@@ -73,6 +73,7 @@ class Goal(Base):
             name="ck_goals_requirement_priority",
         ),
         CheckConstraint("issue_total_di is null or issue_total_di > 0", name="ck_goals_issue_total_di_positive"),
+        CheckConstraint("issue_target_di is null or issue_target_di >= 0", name="ck_goals_issue_target_di_non_negative"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -87,6 +88,7 @@ class Goal(Base):
     requirement_priority: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     issue_module: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
     issue_total_di: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    issue_target_di: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
 
     phase: Mapped[Phase] = relationship(back_populates="goals")

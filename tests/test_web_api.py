@@ -246,6 +246,7 @@ def test_web_api_issue_goal_progress_by_remaining_di(settings):
             "goal_type": "issue",
             "issue_module": "支付",
             "issue_total_di": 80,
+            "issue_target_di": 10,
             "milestone_date": _iso(3),
             "deadline": _iso(6),
         },
@@ -254,6 +255,7 @@ def test_web_api_issue_goal_progress_by_remaining_di(settings):
     goal = goal_resp.json()
     assert goal["goal_type"] == "issue"
     assert goal["issue_total_di"] == 80
+    assert goal["issue_target_di"] == 10
     assert goal["weight"] == 1.0
     assert goal["note"] == "用于支付模块缺陷修复"
 
@@ -269,7 +271,7 @@ def test_web_api_issue_goal_progress_by_remaining_di(settings):
         },
     )
     assert progress_resp.status_code == 201
-    assert progress_resp.json()["progress_percent"] == 75.0
+    assert progress_resp.json()["progress_percent"] == 85.71
     assert progress_resp.json()["remaining_di"] == 20
 
     dashboard_resp = client.get(
@@ -279,7 +281,8 @@ def test_web_api_issue_goal_progress_by_remaining_di(settings):
     dashboard_goal = dashboard_resp.json()["projects"][0]["phases"][0]["goals"][0]
     assert dashboard_goal["goal_type"] == "issue"
     assert dashboard_goal["remaining_di"] == 20
-    assert dashboard_goal["progress_percent"] == 75.0
+    assert dashboard_goal["progress_percent"] == 85.71
+    assert dashboard_goal["issue_target_di"] == 10
     assert dashboard_goal["note"] == "用于支付模块缺陷修复"
 
 

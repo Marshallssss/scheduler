@@ -65,6 +65,7 @@ class GoalCreateInput(BaseModel):
     requirement_priority: Optional[int] = None
     issue_module: Optional[str] = None
     issue_total_di: Optional[float] = None
+    issue_target_di: Optional[float] = None
     weight: Optional[float] = None
 
 
@@ -78,6 +79,7 @@ class GoalUpdateInput(BaseModel):
     requirement_priority: Optional[int] = None
     issue_module: Optional[str] = None
     issue_total_di: Optional[float] = None
+    issue_target_di: Optional[float] = None
     weight: Optional[float] = None
 
 
@@ -213,6 +215,7 @@ def _goal_to_payload(item: GoalSnapshot, user: UserAccount) -> dict:
         "requirement_priority": item.goal.requirement_priority,
         "issue_module": item.goal.issue_module,
         "issue_total_di": item.goal.issue_total_di,
+        "issue_target_di": item.goal.issue_target_di,
         "milestone_date": item.goal.milestone_date.isoformat(),
         "deadline": item.goal.deadline.isoformat(),
         "status": item.goal.status,
@@ -744,6 +747,7 @@ def create_app(settings: Settings) -> FastAPI:
                     requirement_priority=payload.requirement_priority,
                     issue_module=payload.issue_module,
                     issue_total_di=payload.issue_total_di,
+                    issue_target_di=payload.issue_target_di,
                 )
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -762,6 +766,7 @@ def create_app(settings: Settings) -> FastAPI:
                 "requirement_priority": goal.requirement_priority,
                 "issue_module": goal.issue_module,
                 "issue_total_di": goal.issue_total_di,
+                "issue_target_di": goal.issue_target_di,
                 "milestone_date": goal.milestone_date.isoformat(),
                 "deadline": goal.deadline.isoformat(),
                 "status": goal.status,
@@ -797,6 +802,7 @@ def create_app(settings: Settings) -> FastAPI:
                     requirement_priority=payload.requirement_priority,
                     issue_module=payload.issue_module,
                     issue_total_di=payload.issue_total_di,
+                    issue_target_di=payload.issue_target_di,
                 )
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -816,6 +822,7 @@ def create_app(settings: Settings) -> FastAPI:
                 "requirement_priority": goal.requirement_priority,
                 "issue_module": goal.issue_module,
                 "issue_total_di": goal.issue_total_di,
+                "issue_target_di": goal.issue_target_di,
                 "milestone_date": goal.milestone_date.isoformat(),
                 "deadline": goal.deadline.isoformat(),
                 "status": goal.status,

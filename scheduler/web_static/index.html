@@ -1044,7 +1044,7 @@
                   <label for="goalType">目标类型</label>
                   <select id="goalType" required>
                     <option value="requirement">需求型（按完成率）</option>
-                    <option value="issue">问题单型（按剩余 DI）</option>
+                    <option value="issue">问题单型（按 剩余DI-目标DI）</option>
                     <option value="task">事务型（按百分比手动更新）</option>
                   </select>
                 </div>
@@ -1071,6 +1071,10 @@
                   <div class="field">
                     <label for="goalIssueTotalDi">问题单总 DI</label>
                     <input id="goalIssueTotalDi" type="number" min="0.01" step="0.01" />
+                  </div>
+                  <div class="field">
+                    <label for="goalIssueTargetDi">问题单目标 DI</label>
+                    <input id="goalIssueTargetDi" type="number" min="0" step="0.01" placeholder="例如：40" />
                   </div>
                 </div>
                 <div class="two-col">
@@ -1135,7 +1139,7 @@
                   <label for="goalEditType">目标类型</label>
                   <select id="goalEditType" required>
                     <option value="requirement">需求型（按完成率）</option>
-                    <option value="issue">问题单型（按剩余 DI）</option>
+                    <option value="issue">问题单型（按 剩余DI-目标DI）</option>
                     <option value="task">事务型（按百分比手动更新）</option>
                   </select>
                 </div>
@@ -1162,6 +1166,10 @@
                   <div class="field">
                     <label for="goalEditIssueTotalDi">问题单总 DI</label>
                     <input id="goalEditIssueTotalDi" type="number" min="0.01" step="0.01" />
+                  </div>
+                  <div class="field">
+                    <label for="goalEditIssueTargetDi">问题单目标 DI</label>
+                    <input id="goalEditIssueTargetDi" type="number" min="0" step="0.01" />
                   </div>
                 </div>
                 <div class="two-col">
@@ -1324,6 +1332,7 @@
         goalIssueFields: document.getElementById("goalIssueFields"),
         goalIssueModule: document.getElementById("goalIssueModule"),
         goalIssueTotalDi: document.getElementById("goalIssueTotalDi"),
+        goalIssueTargetDi: document.getElementById("goalIssueTargetDi"),
         goalMilestoneDate: document.getElementById("goalMilestoneDate"),
         goalDeadline: document.getElementById("goalDeadline"),
         goalWeight: document.getElementById("goalWeight"),
@@ -1337,6 +1346,7 @@
         goalEditIssueFields: document.getElementById("goalEditIssueFields"),
         goalEditIssueModule: document.getElementById("goalEditIssueModule"),
         goalEditIssueTotalDi: document.getElementById("goalEditIssueTotalDi"),
+        goalEditIssueTargetDi: document.getElementById("goalEditIssueTargetDi"),
         goalEditMilestoneDate: document.getElementById("goalEditMilestoneDate"),
         goalEditDeadline: document.getElementById("goalEditDeadline"),
         goalEditWeight: document.getElementById("goalEditWeight"),
@@ -1533,7 +1543,7 @@
 
       function goalTypeLabel(goal) {
         if (goal.goal_type === "issue") {
-          return `问题单 / ${goal.issue_module || "未分模块"}`;
+          return `问题单 / ${goal.issue_module || "未分模块"} / 目标DI:${Number(goal.issue_target_di ?? 0).toFixed(2)}`;
         }
         if (goal.goal_type === "task") {
           return "事务 / 手动进度";
@@ -1547,7 +1557,10 @@
       function goalProgressText(goal) {
         const percent = Number(goal.progress_percent || 0).toFixed(2);
         if (goal.goal_type === "issue") {
-          return `${percent}% / DI:${Number(goal.remaining_di ?? goal.issue_total_di ?? 0).toFixed(2)}`;
+          const remaining = Number(goal.remaining_di ?? goal.issue_total_di ?? 0);
+          const target = Number(goal.issue_target_di ?? 0);
+          const gap = remaining - target;
+          return `${percent}% / 剩余DI:${remaining.toFixed(2)} / 目标DI:${target.toFixed(2)} / 差值:${gap.toFixed(2)}`;
         }
         if (goal.goal_type === "task") {
           return `${percent}% / 手动`;
@@ -1802,10 +1815,12 @@
         if (isIssue) {
           const input = form.querySelector("input[name='remaining_di']");
           const currentRemaining = Number(goal.remaining_di ?? goal.issue_total_di ?? 0);
+          const targetDi = Number(goal.issue_target_di ?? 0);
+          const gapDi = currentRemaining - targetDi;
           if (input) {
             input.value = Number.isFinite(currentRemaining) ? currentRemaining.toFixed(2) : "0";
           }
-          if (hintEl) hintEl.textContent = "问题单型目标：填写剩余 DI。";
+          if (hintEl) hintEl.textContent = `问题单型目标：填写剩余 DI（目标DI ${targetDi.toFixed(2)}，差值 ${gapDi.toFixed(2)}）。`;
         } else if (isTask) {
           const input = form.querySelector("input[name='progress_percent']");
           const currentProgress = Number(goal.progress_percent || 0);
@@ -1948,6 +1963,9 @@
           if (!dom.goalIssueTotalDi.value) {
             dom.goalIssueTotalDi.value = "1";
           }
+          if (!dom.goalIssueTargetDi.value) {
+            dom.goalIssueTargetDi.value = "0";
+          }
           if (!dom.goalWeight.value) {
             dom.goalWeight.value = "1";
           }
@@ -2016,6 +2034,9 @@
         dom.goalEditIssueFields.classList.toggle("hidden", !isIssue);
         dom.goalEditRequirementPriorityField.classList.toggle("hidden", isIssue || isTask);
         if (isIssue) {
+          if (!dom.goalEditIssueTargetDi.value) {
+            dom.goalEditIssueTargetDi.value = "0";
+          }
           if (!dom.goalEditWeight.value) {
             dom.goalEditWeight.value = "1";
           }
@@ -2063,6 +2084,7 @@
           dom.goalEditRequirementPriority.value = "";
           dom.goalEditIssueModule.value = "";
           dom.goalEditIssueTotalDi.value = "";
+          dom.goalEditIssueTargetDi.value = "0";
           dom.goalEditMilestoneDate.value = "";
           dom.goalEditDeadline.value = "";
           dom.goalEditWeight.value = "1";
@@ -2076,6 +2098,7 @@
         dom.goalEditRequirementPriority.value = goal.requirement_priority ? String(goal.requirement_priority) : "";
         dom.goalEditIssueModule.value = goal.issue_module || "";
         dom.goalEditIssueTotalDi.value = goal.issue_total_di != null ? String(goal.issue_total_di) : "";
+        dom.goalEditIssueTargetDi.value = goal.issue_target_di != null ? String(goal.issue_target_di) : "0";
         dom.goalEditMilestoneDate.value = goal.milestone_date || "";
         dom.goalEditDeadline.value = goal.deadline || "";
         dom.goalEditWeight.value = goal.weight != null ? String(goal.weight) : "1";
@@ -2093,8 +2116,10 @@
 
         if (isIssue) {
           const currentRemaining = Number(goal.remaining_di ?? goal.issue_total_di ?? 0);
+          const targetDi = Number(goal.issue_target_di ?? 0);
+          const gapDi = currentRemaining - targetDi;
           dom.progressRemainingDi.value = Number.isFinite(currentRemaining) ? currentRemaining.toFixed(2) : "0";
-          dom.progressInputHint.textContent = `问题单型目标：按剩余 DI 跟踪（当前剩余 ${dom.progressRemainingDi.value}）`;
+          dom.progressInputHint.textContent = `问题单型目标：按剩余DI-目标DI跟踪（当前剩余 ${dom.progressRemainingDi.value}，目标DI ${targetDi.toFixed(2)}，差值 ${gapDi.toFixed(2)}）`;
         } else if (isTask) {
           const currentProgress = Number(goal ? goal.progress_percent : 0);
           dom.progressValue.value = Number.isFinite(currentProgress) ? currentProgress.toFixed(2) : "0";
@@ -2597,12 +2622,19 @@
           const goalType = dom.goalType.value;
           const note = dom.goalNote.value.trim();
           const issueTotalDi = Number(dom.goalIssueTotalDi.value);
+          const issueTargetDi = Number(dom.goalIssueTargetDi.value);
           if (goalType === "issue") {
             if (!dom.goalIssueModule.value.trim()) {
               throw new Error("问题单型目标必须填写模块");
             }
             if (Number.isNaN(issueTotalDi) || issueTotalDi <= 0) {
               throw new Error("问题单总 DI 必须大于 0");
+            }
+            if (Number.isNaN(issueTargetDi) || issueTargetDi < 0) {
+              throw new Error("问题单目标 DI 不能小于 0");
+            }
+            if (issueTargetDi >= issueTotalDi) {
+              throw new Error("问题单目标 DI 必须小于总 DI");
             }
           }
           if (goalType === "task" && !note) {
@@ -2622,6 +2654,7 @@
                 : null,
               issue_module: goalType === "issue" ? dom.goalIssueModule.value.trim() : null,
               issue_total_di: goalType === "issue" ? issueTotalDi : null,
+              issue_target_di: goalType === "issue" ? issueTargetDi : null,
               milestone_date: dom.goalMilestoneDate.value,
               deadline: dom.goalDeadline.value,
               weight: Number(dom.goalWeight.value || 1),
@@ -2684,12 +2717,19 @@
           const goalType = dom.goalEditType.value;
           const note = dom.goalEditNote.value.trim();
           const issueTotalDi = Number(dom.goalEditIssueTotalDi.value);
+          const issueTargetDi = Number(dom.goalEditIssueTargetDi.value);
           if (goalType === "issue") {
             if (!dom.goalEditIssueModule.value.trim()) {
               throw new Error("问题单型目标必须填写模块");
             }
             if (Number.isNaN(issueTotalDi) || issueTotalDi <= 0) {
               throw new Error("问题单总 DI 必须大于 0");
+            }
+            if (Number.isNaN(issueTargetDi) || issueTargetDi < 0) {
+              throw new Error("问题单目标 DI 不能小于 0");
+            }
+            if (issueTargetDi >= issueTotalDi) {
+              throw new Error("问题单目标 DI 必须小于总 DI");
             }
           }
           if (goalType === "task" && !note) {
@@ -2708,6 +2748,7 @@
                 : null,
               issue_module: goalType === "issue" ? dom.goalEditIssueModule.value.trim() : null,
               issue_total_di: goalType === "issue" ? issueTotalDi : null,
+              issue_target_di: goalType === "issue" ? issueTargetDi : null,
               milestone_date: dom.goalEditMilestoneDate.value,
               deadline: dom.goalEditDeadline.value,
               weight: Number(dom.goalEditWeight.value || 1),
@@ -2895,11 +2936,13 @@
         dom.goalRequirementPriority.value = "";
         dom.goalIssueModule.value = "";
         dom.goalIssueTotalDi.value = "";
+        dom.goalIssueTargetDi.value = "0";
         dom.goalNote.value = "";
         dom.goalEditType.value = "requirement";
         dom.goalEditRequirementPriority.value = "";
         dom.goalEditIssueModule.value = "";
         dom.goalEditIssueTotalDi.value = "";
+        dom.goalEditIssueTargetDi.value = "0";
         dom.goalEditNote.value = "";
         dom.goalMilestoneDate.value = todayISO();
         dom.goalDeadline.value = todayISO();

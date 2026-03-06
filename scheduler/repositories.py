@@ -148,6 +148,7 @@ class Repository:
         requirement_priority: Optional[int] = None,
         issue_module: Optional[str] = None,
         issue_total_di: Optional[float] = None,
+        issue_target_di: Optional[float] = None,
         note: Optional[str] = None,
     ) -> Goal:
         goal = Goal(
@@ -162,6 +163,7 @@ class Repository:
             requirement_priority=requirement_priority,
             issue_module=issue_module,
             issue_total_di=issue_total_di,
+            issue_target_di=issue_target_di,
             status="active",
         )
         self.session.add(goal)
