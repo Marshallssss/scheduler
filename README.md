@@ -234,20 +234,34 @@ scripts/upgrade.sh
 `scripts\upgrade_windows.bat`
 
 脚本默认执行离线整包升级，不依赖 Git。  
+推荐按 GitHub zip 场景使用：
+
+1. 在旧安装目录下创建 `upgrade` 文件夹。
+2. 把新版本 zip（例如 GitHub 下载的源码包）放进 `upgrade`。
+3. 从 zip 里把 `scripts\upgrade_windows.bat` 解压到这个 `upgrade` 文件夹里。
+4. 双击 `upgrade\upgrade_windows.bat`。
+5. 脚本会自动识别“旧安装目录”为目标目录，解压新 zip，并把旧目录中的代码替换为新版本。
+6. 升级完成后，后续仍然在旧目录使用原有的 `scripts\start_windows.bat` 启动即可。
+
 自动检测顺序：
 
-1. `%PROJECT_DIR%\_upgrade\*.zip`（推荐）
-2. `%USERPROFILE%\Downloads\*scheduler*.zip`
-3. 若都未命中，提示手工输入 zip 路径或解压目录
+1. 当前解压出来的新包目录（若你是直接把整个 zip 解压到 `upgrade` 后再运行脚本）
+2. `%PROJECT_DIR%\upgrade\*.zip`（推荐）
+3. `%PROJECT_DIR%\_upgrade\*.zip`（兼容旧目录名）
+4. `%USERPROFILE%\Downloads\*scheduler*.zip`
+5. 若都未命中，提示手工输入 zip 路径或解压目录
 
 推荐流程（最省事）：
 
 1. 保持当前项目目录不变（即你旧版本正在运行的目录）。
 2. （推荐）先双击 `scripts\build_windows_wheels.bat`，把依赖预下载到 `_wheels`。
-3. 在项目根目录创建 `_upgrade` 文件夹（若不存在）。
-4. 下载最新源码压缩包（zip）到 `%PROJECT_DIR%\_upgrade\`。
-5. 双击 `scripts\upgrade_windows.bat`。
-6. 脚本会自动解压、替换代码、升级依赖并执行 `init`。
+3. 在项目根目录创建 `upgrade` 文件夹（若不存在）。
+4. 下载最新源码压缩包（zip）到 `%PROJECT_DIR%\upgrade\`。
+5. 从 zip 里解压出 `scripts\upgrade_windows.bat` 到 `%PROJECT_DIR%\upgrade\upgrade_windows.bat`。
+6. 双击 `%PROJECT_DIR%\upgrade\upgrade_windows.bat`。
+7. 脚本会自动解压、替换代码、升级依赖并执行 `init`。
+
+也支持另一种等价方式：把整个新 zip 先解压到 `%PROJECT_DIR%\upgrade\`，然后直接双击解压后新包中的 `scripts\upgrade_windows.bat`；脚本会自动把旧目录识别为升级目标，而不是把 `upgrade` 目录误认为安装目录。
 
 也可命令行显式指定升级包/目录：
 
@@ -259,13 +273,13 @@ scripts\build_windows_wheels.bat
 ```
 
 升级时会保留本地状态文件/目录（如 `.venv`、`.scheduler.toml`、`.git`），并在 `_wheels` 存在时优先使用离线依赖包。
-请务必在“旧安装目录”里双击运行 `scripts\upgrade_windows.bat`；若当前目录同时缺少 `.scheduler.toml` 和 `.venv`，脚本会直接报错，避免升级到了错误目录。
+请务必让脚本位于“旧安装目录”内或其 `upgrade` 子目录中运行；若向上找不到 `.scheduler.toml` 或 `.venv`，脚本会直接报错，避免升级到了错误目录。
 升级包必须是完整源码包（至少包含 `pyproject.toml`、`scheduler/`、`scripts/`）；若缺少 `scripts` 目录或 `scripts\upgrade_windows.bat`，脚本会直接报错终止，避免“显示成功但实际半升级”。
 为减少耗时，升级脚本默认会跳过 `pip/setuptools/wheel` 的重复升级；如需强制升级可先执行：`set SCHEDULER_FORCE_PIP_TOOLS_UPGRADE=1`。
 如需彻底禁用在线源并强制只使用 `_wheels`：先执行 `set SCHEDULER_OFFLINE_ONLY=1`，再运行脚本。
 
 脚本会在安装前自动检查并修复 `pip._vendor.distlib\t64.exe` 缺失（常见报错：`Unable to find resource t64.exe`），减少因虚拟环境内 pip 资源损坏导致的升级失败。
-另外，代码替换后会校验 `scripts/` 目录是否完整同步；若发现缺失文件会报错并提示查看升级日志。
+另外，代码替换后会校验 `scripts/` 目录是否完整同步；若发现缺失文件会报错并提示查看升级日志。升级过程会保留旧目录下的 `upgrade` / `_upgrade`，方便继续存放后续版本 zip。
 
 失败日志：
 
