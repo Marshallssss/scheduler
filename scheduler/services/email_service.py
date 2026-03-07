@@ -32,6 +32,13 @@ class EmailService:
                 self._send_once(clean_recipients, subject, body)
                 self.logger.info("email sent subject=%s recipients=%s", subject, ",".join(clean_recipients))
                 return True
+            except smtplib.SMTPAuthenticationError as exc:
+                self.logger.error(
+                    "email auth failed err=%s; check smtp_user/smtp_pass and provider SMTP AUTH settings "
+                    "(for Outlook/Exchange, Basic AUTH may be disabled and an app password or SMTP AUTH policy is required)",
+                    exc,
+                )
+                return False
             except Exception as exc:  # noqa: BLE001
                 self.logger.exception("email send failed attempt=%s err=%s", attempt, exc)
                 if attempt == self.max_retries:

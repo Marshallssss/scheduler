@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 from pathlib import Path
+import smtplib
 
 from scheduler.config import Settings
 from scheduler.constants import REPORT_DAILY, REPORT_MONTHLY, REPORT_WEEKLY
@@ -54,6 +55,30 @@ def test_email_failure_retries(monkeypatch):
     ok = svc.send_email(["owner@example.com"], "subject", "body")
     assert not ok
     assert attempts["count"] == 3
+
+
+def test_email_auth_failure_no_retry(monkeypatch):
+    settings = Settings(
+        smtp_host="smtp.example.com",
+        smtp_port=587,
+        smtp_user="user",
+        smtp_pass="pass",
+        mail_from="bot@example.com",
+    )
+    svc = EmailService(settings)
+
+    attempts = {"count": 0}
+
+    def fail_auth_once(recipients, subject, body):
+        attempts["count"] += 1
+        raise smtplib.SMTPAuthenticationError(535, b"5.7.3 Authentication unsuccessful")
+
+    monkeypatch.setattr(svc, "_send_once", fail_auth_once)
+    monkeypatch.setattr("scheduler.services.email_service.time.sleep", lambda _: None)
+
+    ok = svc.send_email(["owner@example.com"], "subject", "body")
+    assert not ok
+    assert attempts["count"] == 1
 
 
 def test_integration_reminder_and_daily_report(session, settings):

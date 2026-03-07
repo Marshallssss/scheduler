@@ -59,6 +59,16 @@ auth_token_ttl_minutes = 720
 - `SCHEDULER_AUTH_SECRET`
 - `SCHEDULER_AUTH_TOKEN_TTL_MINUTES`
 
+### SMTP 认证失败排查（`535 5.7.3 Authentication unsuccessful`）
+
+若日志出现该错误，通常不是网络问题，而是账号认证策略不通过：
+
+1. 确认 `.scheduler.toml` 或环境变量中的 `smtp_user` / `smtp_pass` 正确且未包含多余空格。
+2. 确认 `mail_from` 与发件账号策略兼容（某些服务要求与登录账号一致）。
+3. 对 Outlook / Exchange：默认可能禁用 Basic AUTH，需为账号开启 SMTP AUTH，或使用应用专用密码（MFA 场景）。
+4. 检查是否使用了正确的 SMTP 主机与端口（常见为 `smtp.office365.com:587` + STARTTLS）。
+5. 若公司租户有条件访问/安全策略，需放行 SMTP 客户端登录。
+
 ## 3. 常用命令
 
 ```bash
