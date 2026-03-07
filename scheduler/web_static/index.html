@@ -256,6 +256,112 @@
 
       textarea { min-height: 82px; resize: vertical; }
       .markdown-box { min-height: 320px; font-family: "SF Mono", "Menlo", "Consolas", monospace; }
+      .report-editor-shell {
+        display: grid;
+        grid-template-columns:
+          minmax(280px, var(--report-editor-left, 0.95fr))
+          18px
+          minmax(320px, var(--report-editor-right, 1.05fr));
+        gap: 0;
+        align-items: start;
+      }
+      .report-editor-shell.dragging {
+        user-select: none;
+      }
+      .report-editor-pane {
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.44);
+        backdrop-filter: var(--glass-blur);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+        padding: 12px;
+      }
+      .report-editor-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+      .report-editor-head label {
+        margin: 0;
+        font-size: 15px;
+        color: var(--muted);
+      }
+      .report-editor-note {
+        margin: 0;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .report-editor-divider {
+        position: relative;
+        align-self: stretch;
+        border: none;
+        border-radius: 999px;
+        padding: 0;
+        background: transparent;
+        box-shadow: none;
+        cursor: col-resize;
+        touch-action: none;
+        transition: none;
+      }
+      .report-editor-divider:hover {
+        transform: none;
+        box-shadow: none;
+      }
+      .report-editor-divider::before {
+        content: "";
+        position: absolute;
+        top: 10px;
+        bottom: 10px;
+        left: 50%;
+        width: 4px;
+        transform: translateX(-50%);
+        border-radius: 999px;
+        background: linear-gradient(180deg, rgba(125, 156, 214, 0.22), rgba(88, 129, 205, 0.56), rgba(125, 156, 214, 0.22));
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
+        transition: background 0.16s ease, box-shadow 0.16s ease;
+      }
+      .report-editor-divider::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 10px;
+        height: 44px;
+        transform: translate(-50%, -50%);
+        border-radius: 999px;
+        background:
+          radial-gradient(circle at 50% 8px, rgba(95, 126, 186, 0.85) 0 1.5px, transparent 1.8px),
+          radial-gradient(circle at 50% 16px, rgba(95, 126, 186, 0.85) 0 1.5px, transparent 1.8px),
+          radial-gradient(circle at 50% 24px, rgba(95, 126, 186, 0.85) 0 1.5px, transparent 1.8px),
+          radial-gradient(circle at 50% 32px, rgba(95, 126, 186, 0.85) 0 1.5px, transparent 1.8px);
+        opacity: 0.72;
+        transition: opacity 0.16s ease;
+      }
+      .report-editor-divider:hover::before,
+      .report-editor-shell.dragging .report-editor-divider::before,
+      .report-editor-divider:focus-visible::before {
+        background: linear-gradient(180deg, rgba(84, 131, 221, 0.32), rgba(63, 120, 232, 0.9), rgba(84, 131, 221, 0.32));
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.52), 0 0 0 6px rgba(77, 127, 229, 0.12);
+      }
+      .report-editor-divider:hover::after,
+      .report-editor-shell.dragging .report-editor-divider::after,
+      .report-editor-divider:focus-visible::after {
+        opacity: 1;
+      }
+      .report-editor-divider:focus-visible {
+        outline: none;
+      }
+      .report-preview-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; }
+      .report-html-preview {
+        width: 100%;
+        min-height: 520px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #fff;
+      }
 
       .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
@@ -761,6 +867,8 @@
       @media (max-width: 760px) {
         .top { flex-direction: column; align-items: flex-start; }
         .two-col { grid-template-columns: 1fr; }
+        .report-editor-shell { grid-template-columns: 1fr; }
+        .report-editor-divider { display: none; }
         .project-shell { grid-template-columns: 1fr; }
         .gantt-row { grid-template-columns: 1fr; }
         .gantt-label-stage { white-space: normal; }
@@ -948,8 +1056,29 @@
               <textarea id="reportRecipients" placeholder="owner@example.com\npm@example.com"></textarea>
             </div>
             <div class="field">
-              <label for="reportMarkdown">报表内容（支持编辑）</label>
-              <textarea id="reportMarkdown" class="markdown-box"></textarea>
+              <div id="reportEditorShell" class="report-editor-shell">
+                <section class="report-editor-pane">
+                  <div class="report-editor-head">
+                    <label for="reportMarkdown">报表内容（支持编辑）</label>
+                    <span class="report-editor-note">输入后自动刷新图表</span>
+                  </div>
+                  <textarea id="reportMarkdown" class="markdown-box"></textarea>
+                </section>
+                <button
+                  id="reportEditorDivider"
+                  class="report-editor-divider"
+                  type="button"
+                  aria-label="拖拽调整报表编辑区宽度"
+                  title="拖拽调整左右宽度"
+                ></button>
+                <section class="report-editor-pane">
+                  <div class="report-preview-actions">
+                    <label for="reportHtmlPreview">可视预览（图表）</label>
+                    <button id="reportRenderBtn" class="btn-secondary" type="button">立即刷新</button>
+                  </div>
+                  <iframe id="reportHtmlPreview" class="report-html-preview" sandbox=""></iframe>
+                </section>
+              </div>
             </div>
             <div class="field">
               <label for="reportSkipToday" class="check-line">
@@ -1268,6 +1397,7 @@
       const POLL_MS = 15000;
       const TOKEN_KEY = "scheduler_web_token";
       const THEME_KEY = "scheduler_web_theme";
+      const REPORT_EDITOR_SPLIT_KEY = "scheduler_web_report_editor_split";
 
       const state = {
         token: localStorage.getItem(TOKEN_KEY) || "",
@@ -1283,6 +1413,9 @@
         phaseMap: new Map(),
         goalMap: new Map(),
         projectMap: new Map(),
+        reportEditorSplit: Number(localStorage.getItem(REPORT_EDITOR_SPLIT_KEY) || "0.48"),
+        reportRenderTimer: null,
+        reportRenderRequestSeq: 0,
       };
 
       const dom = {
@@ -1330,6 +1463,8 @@
         dashboardPanel: document.getElementById("dashboardPanel"),
         reportPreviewPanel: document.getElementById("reportPreviewPanel"),
         reportDispatchPanel: document.getElementById("reportDispatchPanel"),
+        reportEditorShell: document.getElementById("reportEditorShell"),
+        reportEditorDivider: document.getElementById("reportEditorDivider"),
         smtpConfigPanel: document.getElementById("smtpConfigPanel"),
 
         projectForm: document.getElementById("projectForm"),
@@ -1406,6 +1541,8 @@
         reportSubject: document.getElementById("reportSubject"),
         reportRecipients: document.getElementById("reportRecipients"),
         reportMarkdown: document.getElementById("reportMarkdown"),
+        reportRenderBtn: document.getElementById("reportRenderBtn"),
+        reportHtmlPreview: document.getElementById("reportHtmlPreview"),
         reportSkipToday: document.getElementById("reportSkipToday"),
         reportSendNowBtn: document.getElementById("reportSendNowBtn"),
         dispatchPeriod: document.getElementById("dispatchPeriod"),
@@ -1540,6 +1677,75 @@
 
       function emailsToTextarea(emails) {
         return (emails || []).join("\n");
+      }
+
+      function normalizeReportEditorSplit(value) {
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed)) return 0.48;
+        return Math.min(0.68, Math.max(0.32, parsed));
+      }
+
+      function applyReportEditorSplit(value, { persist = true } = {}) {
+        const normalized = normalizeReportEditorSplit(value);
+        state.reportEditorSplit = normalized;
+        dom.reportEditorShell.style.setProperty("--report-editor-left", `${normalized.toFixed(4)}fr`);
+        dom.reportEditorShell.style.setProperty("--report-editor-right", `${(1 - normalized).toFixed(4)}fr`);
+        if (persist) {
+          localStorage.setItem(REPORT_EDITOR_SPLIT_KEY, normalized.toFixed(4));
+        }
+      }
+
+      function updateReportEditorSplitByClientX(clientX) {
+        if (!dom.reportEditorShell || window.innerWidth <= 760) return;
+        const shellRect = dom.reportEditorShell.getBoundingClientRect();
+        const dividerWidth = dom.reportEditorDivider ? dom.reportEditorDivider.getBoundingClientRect().width : 18;
+        const availableWidth = shellRect.width - dividerWidth;
+        if (availableWidth <= 0) return;
+        const rawLeftWidth = clientX - shellRect.left - dividerWidth / 2;
+        const clampedLeftWidth = Math.min(availableWidth, Math.max(0, rawLeftWidth));
+        applyReportEditorSplit(clampedLeftWidth / availableWidth);
+      }
+
+      function handleReportEditorDividerPointerDown(event) {
+        if (event.button !== 0 || !dom.reportEditorShell || window.innerWidth <= 760) return;
+        event.preventDefault();
+        dom.reportEditorShell.classList.add("dragging");
+        document.body.style.cursor = "col-resize";
+        if (dom.reportEditorDivider.setPointerCapture) {
+          dom.reportEditorDivider.setPointerCapture(event.pointerId);
+        }
+        updateReportEditorSplitByClientX(event.clientX);
+
+        const handleMove = (moveEvent) => {
+          updateReportEditorSplitByClientX(moveEvent.clientX);
+        };
+
+        const finishDrag = () => {
+          window.removeEventListener("pointermove", handleMove);
+          window.removeEventListener("pointerup", finishDrag);
+          window.removeEventListener("pointercancel", finishDrag);
+          dom.reportEditorShell.classList.remove("dragging");
+          document.body.style.cursor = "";
+          if (dom.reportEditorDivider.releasePointerCapture) {
+            try {
+              dom.reportEditorDivider.releasePointerCapture(event.pointerId);
+            } catch (err) {}
+          }
+        };
+
+        window.addEventListener("pointermove", handleMove);
+        window.addEventListener("pointerup", finishDrag);
+        window.addEventListener("pointercancel", finishDrag);
+      }
+
+      function setReportPreviewHtml(html) {
+        dom.reportHtmlPreview.srcdoc = html || "";
+      }
+
+      function clearReportRenderTimer() {
+        if (!state.reportRenderTimer) return;
+        clearTimeout(state.reportRenderTimer);
+        state.reportRenderTimer = null;
       }
 
       function reportPeriodLabel(period) {
@@ -2259,11 +2465,14 @@
       async function handleReportPreview(event) {
         event.preventDefault();
         try {
+          clearReportRenderTimer();
           const period = dom.reportPeriod.value;
           const runDate = dom.reportDate.value;
           const data = await requestJson(`/api/reports/preview?period=${period}&date=${runDate}`);
           dom.reportSubject.value = data.subject || "";
           dom.reportMarkdown.value = data.markdown || "";
+          setReportPreviewHtml(data.html || "");
+          state.reportRenderRequestSeq += 1;
           const scheduledRecipients = data.scheduled && data.scheduled.recipients ? data.scheduled.recipients : [];
           const recipients = scheduledRecipients.length ? scheduledRecipients : (data.default_recipients || []);
           dom.reportRecipients.value = emailsToTextarea(recipients);
@@ -2271,6 +2480,42 @@
         } catch (err) {
           showStatus(err.message, "error");
         }
+      }
+
+      async function renderReportPreview({ silent = false } = {}) {
+        const currentMarkdown = dom.reportMarkdown.value || "";
+        const currentSubject = dom.reportSubject.value || "报表预览";
+        const requestSeq = ++state.reportRenderRequestSeq;
+        try {
+          const data = await requestJson("/api/reports/render-html", {
+            method: "POST",
+            body: JSON.stringify({
+              markdown: currentMarkdown,
+              subject: currentSubject,
+            }),
+          });
+          if (requestSeq !== state.reportRenderRequestSeq) return;
+          setReportPreviewHtml(data.html || "");
+          if (!silent) {
+            showStatus("图表预览已刷新", "ok");
+          }
+        } catch (err) {
+          if (requestSeq !== state.reportRenderRequestSeq) return;
+          showStatus(err.message, "error");
+        }
+      }
+
+      function scheduleReportRenderPreview() {
+        clearReportRenderTimer();
+        state.reportRenderTimer = setTimeout(() => {
+          state.reportRenderTimer = null;
+          renderReportPreview({ silent: true });
+        }, 450);
+      }
+
+      async function handleReportRenderPreview() {
+        clearReportRenderTimer();
+        await renderReportPreview({ silent: false });
       }
 
       async function handleReportSendNow() {
@@ -3014,6 +3259,7 @@
         applyTheme(resolveInitialTheme());
         state.activeMainTab = "dashboard";
         state.activeOpsTab = "project";
+        applyReportEditorSplit(state.reportEditorSplit, { persist: false });
         dom.projectDeadline.value = todayISO();
         dom.goalType.value = "requirement";
         dom.goalRequirementPriority.value = "";
@@ -3038,6 +3284,9 @@
         dom.reportSubject.value = "";
         dom.reportRecipients.value = "";
         dom.reportMarkdown.value = "";
+        clearReportRenderTimer();
+        setReportPreviewHtml("");
+        state.reportRenderRequestSeq = 0;
         dom.reportSkipToday.checked = false;
         dom.dispatchPeriod.value = "daily";
         dom.dispatchSendTime.value = "18:00";
@@ -3077,6 +3326,9 @@
         dom.dashboard.addEventListener("submit", handleProjectCardProgress);
         dom.dashboard.addEventListener("change", handleDashboardFormChange);
         dom.reportPreviewForm.addEventListener("submit", handleReportPreview);
+        dom.reportEditorDivider.addEventListener("pointerdown", handleReportEditorDividerPointerDown);
+        dom.reportRenderBtn.addEventListener("click", handleReportRenderPreview);
+        dom.reportMarkdown.addEventListener("input", scheduleReportRenderPreview);
         dom.reportDispatchForm.addEventListener("submit", handleReportDispatchSave);
         dom.smtpConfigForm.addEventListener("submit", handleSmtpConfigSave);
         dom.reportSendNowBtn.addEventListener("click", handleReportSendNow);

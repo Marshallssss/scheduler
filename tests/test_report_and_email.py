@@ -4,6 +4,8 @@ from datetime import date, timedelta
 from pathlib import Path
 import smtplib
 
+import pytest
+
 from scheduler.config import Settings
 from scheduler.constants import REPORT_DAILY, REPORT_MONTHLY, REPORT_WEEKLY
 from scheduler.repositories import Repository
@@ -81,6 +83,62 @@ def test_email_auth_failure_no_retry(monkeypatch):
     assert attempts["count"] == 1
 
 
+@pytest.mark.parametrize(
+    ("period", "run_date", "report_title"),
+    [
+        (REPORT_DAILY, date(2026, 3, 2), "项目日报"),
+        (REPORT_WEEKLY, date(2026, 3, 6), "项目周报"),
+        (REPORT_MONTHLY, date(2026, 3, 31), "项目月报"),
+    ],
+)
+def test_report_includes_goal_charts_for_all_periods(session, settings, period, run_date, report_title):
+    base = date(2026, 3, 2)
+    repo = Repository(session)
+
+    project = repo.create_project(
+        name="Chart Project",
+        deadline=base + timedelta(days=15),
+        participants=[("Owner", "owner@example.com")],
+    )
+    phase = repo.add_phase(project.id, name="执行", objective="推进交付")
+    owner = repo.list_project_participants(project.id)[0]
+    goal = repo.add_goal(
+        phase_id=phase.id,
+        title="图表目标",
+        owner_participant_id=owner.id,
+        milestone_date=base + timedelta(days=2),
+        deadline=base + timedelta(days=5),
+        weight=1,
+    )
+
+    progress = ProgressService(repo)
+    progress.record_progress(
+        goal.id,
+        base,
+        progress_percent=None,
+        requirement_total_count=20,
+        requirement_done_count=6,
+        progress_state="delayed",
+        risk_note="供应商联调延迟",
+        updated_by="pm",
+    )
+
+    rendered = ReportService(
+        repo,
+        email_service=FakeEmailService(),
+        report_output_dir=settings.expanded_report_output_dir,
+    ).render_report(period=period, run_date=run_date)
+
+    assert report_title in rendered.markdown
+    assert "目标概览图表" in rendered.markdown
+    assert "class=\"report-chart-card\"" in rendered.markdown
+    assert "目标进度图" in rendered.markdown
+    assert "| 项目 | 阶段 | 目标 | 负责人 | 完成率 | 进度状态 | 权重 | 里程碑 | 截止日期 | 风险项目 |" in rendered.markdown
+    assert "<!DOCTYPE html>" in rendered.html
+    assert "report-chart-card" in rendered.html
+    assert "供应商联调延迟" in rendered.html
+
+
 def test_integration_reminder_and_daily_report(session, settings):
     base = date(2026, 3, 2)
     repo = Repository(session)
@@ -115,3 +173,4 @@ def test_integration_reminder_and_daily_report(session, settings):
     assert report_result.status == "sent"
     assert Path(report_result.markdown_path).exists()
     assert len(fake_email.sent_messages) >= 2
+    assert any(message[3] for message in fake_email.sent_messages if "项目日报" in message[1])

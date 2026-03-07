@@ -9,10 +9,16 @@ from scheduler.repositories import Repository
 @dataclass
 class FakeEmailService:
     should_succeed: bool = True
-    sent_messages: list[tuple[list[str], str, str]] = field(default_factory=list)
+    sent_messages: list[tuple[list[str], str, str, str | None]] = field(default_factory=list)
 
-    def send_email(self, recipients: list[str], subject: str, body: str) -> bool:
-        self.sent_messages.append((recipients, subject, body))
+    def send_email(
+        self,
+        recipients: list[str],
+        subject: str,
+        body: str,
+        html_body: str | None = None,
+    ) -> bool:
+        self.sent_messages.append((recipients, subject, body, html_body))
         return self.should_succeed
 
 

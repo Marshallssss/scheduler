@@ -104,6 +104,11 @@ class ReportSendNowInput(BaseModel):
     skip_today_schedule: bool = False
 
 
+class ReportHtmlRenderInput(BaseModel):
+    markdown: str = ""
+    subject: str = Field("报表预览", min_length=1)
+
+
 class ReportDispatchPreferenceUpdateInput(BaseModel):
     send_time: str = Field(..., min_length=5, max_length=5)
     recipients: list[str] = Field(default_factory=list)
@@ -523,6 +528,15 @@ def create_app(settings: Settings) -> FastAPI:
                 return service.preview(period=period, run_date=target_date)
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/api/reports/render-html")
+    def render_report_html(payload: ReportHtmlRenderInput, authorization: Optional[str] = Header(None)) -> dict:
+        with session_scope(session_factory) as session:
+            repo = Repository(session)
+            user, _, _ = _require_auth_user(repo, auth_service, authorization)
+            _ensure_admin(user)
+            service = _build_report_dispatch_service(repo, settings)
+            return {"html": service.report_service.render_html_document(payload.markdown, payload.subject)}
 
     @app.post("/api/reports/send-now")
     def send_report_now(payload: ReportSendNowInput, authorization: Optional[str] = Header(None)) -> dict:

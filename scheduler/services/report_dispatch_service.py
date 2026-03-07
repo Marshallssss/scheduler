@@ -69,6 +69,7 @@ class ReportDispatchService:
             "end_date": rendered.end_date.isoformat(),
             "subject": rendered.subject,
             "markdown": rendered.markdown,
+            "html": rendered.html,
             "default_recipients": default_recipients,
             "scheduled": scheduled,
         }

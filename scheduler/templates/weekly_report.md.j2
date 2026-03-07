@@ -5,6 +5,14 @@
 - 进度更新条数: {{ update_count }}
 - 回退备注条数: {{ rollback_count }}
 
+## 目标概览图表
+
+### 完成率区间分布
+{{ goal_progress_distribution_chart_html }}
+
+### 目标状态分布
+{{ goal_state_distribution_chart_html }}
+
 {% if not projects %}
 当前无活跃项目。
 {% endif %}
@@ -15,10 +23,13 @@
 - 总完成率: {{ "%.2f"|format(project.overall_progress) }}%
 - 目标完成数: {{ project.completed_goals }}/{{ project.total_goals }}
 
-### 阶段进度
-{% for phase in project.phases %}
-- {{ phase.name }}: {{ "%.2f"|format(phase.progress) }}% ({{ phase.completed_goals }}/{{ phase.total_goals }})
-{% endfor %}
+{{ project.overall_progress_chart_html }}
+
+### 阶段进度图
+{{ project.phase_progress_chart_html }}
+
+### 目标进度图
+{{ project.goal_progress_chart_html }}
 
 {% endfor %}
 

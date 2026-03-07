@@ -518,12 +518,24 @@ def test_report_preview_dispatch_preferences_and_send_now(settings):
     assert "项目日报" in preview["subject"]
     assert "owner@example.com" in preview["default_recipients"]
     assert isinstance(preview["markdown"], str) and preview["markdown"]
+    assert isinstance(preview["html"], str) and preview["html"]
+    assert "目标概览图表" in preview["markdown"]
     assert "目标明细（汇总）" in preview["markdown"]
     assert "风险项目" in preview["markdown"]
+    assert "class=\"report-chart-card\"" in preview["markdown"]
     assert "| 项目 | 阶段 | 目标 | 负责人 | 完成率 | 进度状态 | 权重 | 里程碑 | 截止日期 | 风险项目 |" in preview["markdown"]
     assert "**30.00%**" in preview["markdown"]
     assert "进度delay；供应商联调延迟" in preview["markdown"]
-    assert "<span style=" not in preview["markdown"]
+    assert "<!DOCTYPE html>" in preview["html"]
+    assert "report-chart-card" in preview["html"]
+
+    render_html_resp = client.post(
+        "/api/reports/render-html",
+        headers=admin_headers,
+        json={"markdown": preview["markdown"], "subject": preview["subject"]},
+    )
+    assert render_html_resp.status_code == 200
+    assert "report-doc" in render_html_resp.json()["html"]
 
     update_pref = client.put(
         "/api/report-dispatch/preferences/daily",
