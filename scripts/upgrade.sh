@@ -53,4 +53,4 @@ fi
 
 echo "[DONE] Upgrade completed"
 echo "[INFO] Start web with:"
-echo "       $VENV_PY -m scheduler.cli web --host=127.0.0.1 --port=8787"
+echo "       $VENV_PY -m scheduler.cli web --host=0.0.0.0 --port=8787"

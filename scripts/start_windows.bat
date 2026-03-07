@@ -31,8 +31,8 @@ echo [INFO] Checking scheduler cli...
 "%PYTHON_EXE%" -m scheduler.cli --help >nul 2>> "%START_LOG%"
 if errorlevel 1 goto :fail
 
-echo [INFO] Launching web server on http://127.0.0.1:8787 ...
-start "Scheduler Web" "%PYTHON_EXE%" -m scheduler.cli web --host=127.0.0.1 --port=8787
+echo [INFO] Launching web server on http://0.0.0.0:8787 ...
+start "Scheduler Web" "%PYTHON_EXE%" -m scheduler.cli web --host=0.0.0.0 --port=8787
 if errorlevel 1 goto :fail
 
 echo [DONE] Start command submitted.

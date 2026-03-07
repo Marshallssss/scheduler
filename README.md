@@ -98,7 +98,7 @@ scheduler report generate --period monthly --date 2026-03-31
 
 ## 4. Web 前端界面
 
-启动 Web 界面（默认 `127.0.0.1:8787`）：
+启动 Web 界面（默认 `0.0.0.0:8787`）：
 
 ```bash
 scheduler --config .scheduler.toml web --host 0.0.0.0 --port 8787
@@ -106,7 +106,7 @@ scheduler --config .scheduler.toml web --host 0.0.0.0 --port 8787
 
 浏览器打开：
 
-- `http://127.0.0.1:8787`（本机访问）
+- `http://0.0.0.0:8787`（监听地址）
 - `http://<你的机器IP>:8787`（局域网访问）
 
 Web 页面支持：
@@ -191,7 +191,7 @@ crontab -l
 1. 创建 `.venv`
 2. 安装项目依赖
 3. 初始化 `.scheduler.toml` 与数据库（若不存在）
-4. 启动 Web（`http://127.0.0.1:8787`）
+4. 启动 Web（`http://0.0.0.0:8787`）
 
 说明：
 

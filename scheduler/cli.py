@@ -451,7 +451,7 @@ def jobs_run_monthly(
 @app.command("web")
 def web_run(
     ctx: typer.Context,
-    host: str = typer.Option("127.0.0.1", "--host", help="监听地址"),
+    host: str = typer.Option("0.0.0.0", "--host", help="监听地址"),
     port: int = typer.Option(8787, "--port", help="监听端口"),
 ) -> None:
     """启动 Web 管理界面。"""

@@ -265,7 +265,7 @@ if defined TEMP_EXTRACT_DIR rmdir /s /q "%TEMP_EXTRACT_DIR%" >nul 2>nul
 echo [DONE] Upgrade completed.
 echo [INFO] Log file: %UPGRADE_LOG%
 echo [INFO] Start web with:
-echo        "%PYTHON_EXE%" -m scheduler.cli web --host=127.0.0.1 --port=8787
+echo        "%PYTHON_EXE%" -m scheduler.cli web --host=0.0.0.0 --port=8787
 pause
 exit /b 0
 
