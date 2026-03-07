@@ -27,8 +27,25 @@ set "OFFLINE_ONLY=0"
 call :resolve_project_dir
 if errorlevel 1 goto :early_fail
 
-call :resolve_upgrade_dir
-if errorlevel 1 goto :early_fail
+set "SEARCH_DIR=%SCRIPT_DIR%"
+set "UPGRADE_DIR="
+for %%L in (1 2 3 4 5 6 7 8) do (
+  for %%n in ("!SEARCH_DIR!") do set "DIR_NAME=%%~nxn"
+  if /I "!DIR_NAME!"=="upgrade" (
+    set "UPGRADE_DIR=!SEARCH_DIR!"
+    goto :resolve_upgrade_dir_done
+  )
+  if /I "!DIR_NAME!"=="_upgrade" (
+    set "UPGRADE_DIR=!SEARCH_DIR!"
+    goto :resolve_upgrade_dir_done
+  )
+  if /I "!SEARCH_DIR!"=="%PROJECT_DIR%" goto :resolve_upgrade_dir_done
+  call :parent_dir "!SEARCH_DIR!" PARENT_DIR
+  if /I "!PARENT_DIR!"=="!SEARCH_DIR!" goto :resolve_upgrade_dir_done
+  set "SEARCH_DIR=!PARENT_DIR!"
+)
+:resolve_upgrade_dir_done
+if not defined UPGRADE_DIR call :normalize_path UPGRADE_DIR "%PROJECT_DIR%\upgrade"
 
 call :resolve_current_package_dir
 
@@ -399,37 +416,32 @@ set "CANDIDATE_DIR=%~1"
 set "SOURCE_DIR="
 call :normalize_path CANDIDATE_DIR "%CANDIDATE_DIR%"
 
-if exist "%CANDIDATE_DIR%\pyproject.toml" set "SOURCE_DIR=%CANDIDATE_DIR%"
+call :try_source_candidate "%CANDIDATE_DIR%"
+if not errorlevel 1 exit /b 0
 
-if not defined SOURCE_DIR (
-  for /f "delims=" %%d in ('dir /b /ad "%CANDIDATE_DIR%" 2^>nul') do (
-    if not defined SOURCE_DIR if exist "%CANDIDATE_DIR%\%%d\pyproject.toml" call :normalize_path SOURCE_DIR "%CANDIDATE_DIR%\%%d"
-  )
+for /f "delims=" %%d in ('dir /b /ad "%CANDIDATE_DIR%" 2^>nul') do (
+  call :try_source_candidate "%CANDIDATE_DIR%\%%d"
+  if not errorlevel 1 exit /b 0
 )
 
-if not defined SOURCE_DIR (
-  for /f "delims=" %%p in ('dir /s /b /a:-d "%CANDIDATE_DIR%\pyproject.toml" 2^>nul') do (
-    if not defined SOURCE_DIR for %%q in ("%%p") do call :normalize_path SOURCE_DIR "%%~dpq"
-  )
+for /f "delims=" %%p in ('dir /s /b /a:-d "%CANDIDATE_DIR%\pyproject.toml" 2^>nul') do (
+  for %%q in ("%%p") do call :try_source_candidate "%%~dpq"
+  if not errorlevel 1 exit /b 0
 )
 
-if not defined SOURCE_DIR exit /b 1
+exit /b 1
 
-if not exist "%SOURCE_DIR%\scheduler\cli.py" (
-  set "SOURCE_DIR="
-  exit /b 1
-)
+:try_source_candidate
+set "TRY_DIR=%~1"
+if not defined TRY_DIR exit /b 1
+call :normalize_path TRY_DIR "%TRY_DIR%"
 
-if not exist "%SOURCE_DIR%\scripts\NUL" (
-  set "SOURCE_DIR="
-  exit /b 1
-)
+if not exist "%TRY_DIR%\pyproject.toml" exit /b 1
+if not exist "%TRY_DIR%\scheduler\cli.py" exit /b 1
+if not exist "%TRY_DIR%\scripts\NUL" exit /b 1
+if not exist "%TRY_DIR%\scripts\upgrade_windows.bat" exit /b 1
 
-if not exist "%SOURCE_DIR%\scripts\upgrade_windows.bat" (
-  set "SOURCE_DIR="
-  exit /b 1
-)
-
+set "SOURCE_DIR=%TRY_DIR%"
 exit /b 0
 
 :verify_scripts_sync
