@@ -110,6 +110,14 @@ class ReportDispatchPreferenceUpdateInput(BaseModel):
     enabled: bool = True
 
 
+class SmtpSettingsUpdateInput(BaseModel):
+    smtp_host: str = ""
+    smtp_port: int = Field(587, ge=1, le=65535)
+    smtp_user: str = ""
+    smtp_pass: str = ""
+    mail_from: str = ""
+
+
 class AuthBootstrapInput(BaseModel):
     username: str = Field(..., min_length=3, max_length=80)
     password: str = Field(..., min_length=6)
@@ -588,6 +596,40 @@ def create_app(settings: Settings) -> FastAPI:
             runs = service.run_due(now=datetime.now())
             return {
                 "runs": [{"period": item.period, "status": item.status} for item in runs],
+            }
+
+    @app.get("/api/settings/smtp")
+    def get_smtp_settings(authorization: Optional[str] = Header(None)) -> dict:
+        with session_scope(session_factory) as session:
+            repo = Repository(session)
+            user, _, _ = _require_auth_user(repo, auth_service, authorization)
+            _ensure_admin(user)
+            return {
+                "smtp_host": settings.smtp_host,
+                "smtp_port": settings.smtp_port,
+                "smtp_user": settings.smtp_user,
+                "smtp_pass": settings.smtp_pass,
+                "mail_from": settings.mail_from,
+            }
+
+    @app.put("/api/settings/smtp")
+    def update_smtp_settings(payload: SmtpSettingsUpdateInput, authorization: Optional[str] = Header(None)) -> dict:
+        with session_scope(session_factory) as session:
+            repo = Repository(session)
+            user, _, _ = _require_auth_user(repo, auth_service, authorization)
+            _ensure_admin(user)
+
+            settings.smtp_host = payload.smtp_host.strip()
+            settings.smtp_port = int(payload.smtp_port)
+            settings.smtp_user = payload.smtp_user.strip()
+            settings.smtp_pass = payload.smtp_pass
+            settings.mail_from = payload.mail_from.strip()
+            return {
+                "smtp_host": settings.smtp_host,
+                "smtp_port": settings.smtp_port,
+                "smtp_user": settings.smtp_user,
+                "smtp_pass": settings.smtp_pass,
+                "mail_from": settings.mail_from,
             }
 
     @app.get("/api/projects")

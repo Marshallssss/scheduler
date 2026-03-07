@@ -755,3 +755,82 @@ def test_admin_can_update_and_delete_phase_goal(settings):
 
     delete_phase_resp = client.delete(f"/api/phases/{phase_id}", headers=admin_headers)
     assert delete_phase_resp.status_code == 204
+
+
+def test_web_api_smtp_settings_tab_api(settings):
+    app = create_app(settings)
+    client = TestClient(app)
+    admin_headers = _bootstrap_admin(client)
+
+    get_resp = client.get("/api/settings/smtp", headers=admin_headers)
+    assert get_resp.status_code == 200
+    assert get_resp.json()["smtp_port"] == 587
+
+    put_resp = client.put(
+        "/api/settings/smtp",
+        headers=admin_headers,
+        json={
+            "smtp_host": "smtp.mail.local",
+            "smtp_port": 465,
+            "smtp_user": "bot@example.com",
+            "smtp_pass": "secret-pass",
+            "mail_from": "pm-bot@example.com",
+        },
+    )
+    assert put_resp.status_code == 200
+    assert put_resp.json()["smtp_host"] == "smtp.mail.local"
+    assert put_resp.json()["smtp_port"] == 465
+
+    check_resp = client.get("/api/settings/smtp", headers=admin_headers)
+    assert check_resp.status_code == 200
+    payload = check_resp.json()
+    assert payload["smtp_host"] == "smtp.mail.local"
+    assert payload["smtp_port"] == 465
+    assert payload["smtp_user"] == "bot@example.com"
+    assert payload["smtp_pass"] == "secret-pass"
+    assert payload["mail_from"] == "pm-bot@example.com"
+
+
+def test_web_api_smtp_settings_requires_admin(settings):
+    app = create_app(settings)
+    client = TestClient(app)
+    admin_headers = _bootstrap_admin(client)
+
+    project_resp = client.post(
+        "/api/projects",
+        headers=admin_headers,
+        json={
+            "name": "SMTP Role",
+            "deadline": _iso(20),
+            "participants": [{"name": "Owner", "email": "owner@example.com"}],
+        },
+    )
+    owner_pid = project_resp.json()["participants"][0]["id"]
+    create_owner = client.post(
+        "/api/auth/users",
+        headers=admin_headers,
+        json={
+            "username": "owner1",
+            "password": "owner123",
+            "role": "owner",
+            "participant_id": owner_pid,
+        },
+    )
+    assert create_owner.status_code == 201
+    owner_headers = _login(client, "owner1", "owner123")
+
+    unauthorized_get = client.get("/api/settings/smtp", headers=owner_headers)
+    assert unauthorized_get.status_code == 403
+
+    unauthorized_put = client.put(
+        "/api/settings/smtp",
+        headers=owner_headers,
+        json={
+            "smtp_host": "smtp.mail.local",
+            "smtp_port": 587,
+            "smtp_user": "",
+            "smtp_pass": "",
+            "mail_from": "",
+        },
+    )
+    assert unauthorized_put.status_code == 403

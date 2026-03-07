@@ -825,6 +825,7 @@
           <div class="tab-buttons">
             <button id="tabDashboardBtn" class="tab-btn active" type="button">看板与配置</button>
             <button id="tabReportsBtn" class="tab-btn hidden" type="button">报表与邮件</button>
+            <button id="tabSmtpBtn" class="tab-btn hidden" type="button">SMTP 配置</button>
             <button id="tabOpsBtn" class="tab-btn hidden" type="button">创建与维护</button>
             <button id="tabAdminBtn" class="tab-btn hidden" type="button">管理员入口</button>
           </div>
@@ -884,6 +885,36 @@
               </div>
               <button class="btn-primary" type="submit">提交进度</button>
             </form>
+          </section>
+        </section>
+
+        <section class="tab-page hidden" id="smtpTabPage">
+          <section class="panel report-dispatch hidden admin-only" id="smtpConfigPanel">
+            <h2>SMTP 参数配置</h2>
+            <form id="smtpConfigForm">
+              <div class="field">
+                <label for="smtpHost">SMTP Host</label>
+                <input id="smtpHost" placeholder="smtp.example.com" />
+              </div>
+              <div class="field">
+                <label for="smtpPort">SMTP Port</label>
+                <input id="smtpPort" type="number" min="1" max="65535" step="1" required />
+              </div>
+              <div class="field">
+                <label for="smtpUser">SMTP 用户名</label>
+                <input id="smtpUser" placeholder="user@example.com" />
+              </div>
+              <div class="field">
+                <label for="smtpPass">SMTP 密码</label>
+                <input id="smtpPass" type="password" placeholder="保持为空则不修改" />
+              </div>
+              <div class="field">
+                <label for="smtpMailFrom">发件人邮箱</label>
+                <input id="smtpMailFrom" placeholder="pm-bot@example.com" />
+              </div>
+              <button class="btn-primary" type="submit">保存 SMTP 配置</button>
+            </form>
+            <div id="smtpSummary" class="hint" style="margin-top: 10px;">尚未加载 SMTP 配置。</div>
           </section>
         </section>
 
@@ -1274,9 +1305,11 @@
         dashboardTabPage: document.getElementById("dashboardTabPage"),
         reportsTabPage: document.getElementById("reportsTabPage"),
         opsTabPage: document.getElementById("opsTabPage"),
+        smtpTabPage: document.getElementById("smtpTabPage"),
         adminTabPage: document.getElementById("adminTabPage"),
         tabDashboardBtn: document.getElementById("tabDashboardBtn"),
         tabReportsBtn: document.getElementById("tabReportsBtn"),
+        tabSmtpBtn: document.getElementById("tabSmtpBtn"),
         tabOpsBtn: document.getElementById("tabOpsBtn"),
         tabAdminBtn: document.getElementById("tabAdminBtn"),
 
@@ -1297,6 +1330,7 @@
         dashboardPanel: document.getElementById("dashboardPanel"),
         reportPreviewPanel: document.getElementById("reportPreviewPanel"),
         reportDispatchPanel: document.getElementById("reportDispatchPanel"),
+        smtpConfigPanel: document.getElementById("smtpConfigPanel"),
 
         projectForm: document.getElementById("projectForm"),
         projectEditForm: document.getElementById("projectEditForm"),
@@ -1307,6 +1341,7 @@
         progressForm: document.getElementById("progressForm"),
         reportPreviewForm: document.getElementById("reportPreviewForm"),
         reportDispatchForm: document.getElementById("reportDispatchForm"),
+        smtpConfigForm: document.getElementById("smtpConfigForm"),
 
         projectDeadline: document.getElementById("projectDeadline"),
         projectParticipants: document.getElementById("projectParticipants"),
@@ -1378,6 +1413,12 @@
         dispatchRecipients: document.getElementById("dispatchRecipients"),
         dispatchEnabled: document.getElementById("dispatchEnabled"),
         dispatchSummary: document.getElementById("dispatchSummary"),
+        smtpHost: document.getElementById("smtpHost"),
+        smtpPort: document.getElementById("smtpPort"),
+        smtpUser: document.getElementById("smtpUser"),
+        smtpPass: document.getElementById("smtpPass"),
+        smtpMailFrom: document.getElementById("smtpMailFrom"),
+        smtpSummary: document.getElementById("smtpSummary"),
 
         dashboard: document.getElementById("dashboard"),
       };
@@ -2290,23 +2331,57 @@
         }
       }
 
+
+      async function loadSmtpSettings() {
+        if (!state.me || state.me.role !== "admin") return;
+        const data = await requestJson("/api/settings/smtp");
+        dom.smtpHost.value = data.smtp_host || "";
+        dom.smtpPort.value = String(data.smtp_port || 587);
+        dom.smtpUser.value = data.smtp_user || "";
+        dom.smtpPass.value = data.smtp_pass || "";
+        dom.smtpMailFrom.value = data.mail_from || "";
+        dom.smtpSummary.textContent = `当前配置: host=${data.smtp_host || "(未设置)"}, port=${data.smtp_port || 587}, from=${data.mail_from || "(未设置)"}`;
+      }
+
+      async function handleSmtpConfigSave(event) {
+        event.preventDefault();
+        try {
+          const data = await requestJson("/api/settings/smtp", {
+            method: "PUT",
+            body: JSON.stringify({
+              smtp_host: dom.smtpHost.value.trim(),
+              smtp_port: Number(dom.smtpPort.value || 587),
+              smtp_user: dom.smtpUser.value.trim(),
+              smtp_pass: dom.smtpPass.value,
+              mail_from: dom.smtpMailFrom.value.trim(),
+            }),
+          });
+          dom.smtpSummary.textContent = `当前配置: host=${data.smtp_host || "(未设置)"}, port=${data.smtp_port}, from=${data.mail_from || "(未设置)"}`;
+          showStatus("SMTP 参数已保存", "ok");
+        } catch (err) {
+          showStatus(err.message, "error");
+        }
+      }
       function setMainTab(tab) {
-        if (tab === "admin" || tab === "ops" || tab === "reports") {
+        if (tab === "admin" || tab === "ops" || tab === "reports" || tab === "smtp") {
           state.activeMainTab = tab;
         } else {
           state.activeMainTab = "dashboard";
         }
         const isDashboardTab = state.activeMainTab === "dashboard";
         const isReportsTab = state.activeMainTab === "reports";
+        const isSmtpTab = state.activeMainTab === "smtp";
         const isOpsTab = state.activeMainTab === "ops";
         const isAdminTab = state.activeMainTab === "admin";
 
         dom.tabDashboardBtn.classList.toggle("active", isDashboardTab);
         dom.tabReportsBtn.classList.toggle("active", isReportsTab);
+        dom.tabSmtpBtn.classList.toggle("active", isSmtpTab);
         dom.tabOpsBtn.classList.toggle("active", isOpsTab);
         dom.tabAdminBtn.classList.toggle("active", isAdminTab);
         dom.dashboardTabPage.classList.toggle("hidden", !isDashboardTab);
         dom.reportsTabPage.classList.toggle("hidden", !isReportsTab);
+        dom.smtpTabPage.classList.toggle("hidden", !isSmtpTab);
         dom.opsTabPage.classList.toggle("hidden", !isOpsTab);
         dom.adminTabPage.classList.toggle("hidden", !isAdminTab);
       }
@@ -2341,13 +2416,16 @@
           dom.dashboardTabPage.classList.add("hidden");
           dom.reportsTabPage.classList.add("hidden");
           dom.opsTabPage.classList.add("hidden");
+          dom.smtpTabPage.classList.add("hidden");
           dom.adminTabPage.classList.add("hidden");
           dom.opsPanel.classList.add("hidden");
           dom.progressPanel.classList.add("hidden");
           dom.dashboardPanel.classList.add("hidden");
           dom.reportPreviewPanel.classList.add("hidden");
           dom.reportDispatchPanel.classList.add("hidden");
+          dom.smtpConfigPanel.classList.add("hidden");
           dom.tabReportsBtn.classList.add("hidden");
+          dom.tabSmtpBtn.classList.add("hidden");
           dom.tabOpsBtn.classList.add("hidden");
           dom.tabAdminBtn.classList.add("hidden");
           dom.adminUserPanel.classList.add("hidden");
@@ -2364,7 +2442,9 @@
           dom.opsPanel.classList.remove("hidden");
           dom.reportPreviewPanel.classList.remove("hidden");
           dom.reportDispatchPanel.classList.remove("hidden");
+          dom.smtpConfigPanel.classList.remove("hidden");
           dom.tabReportsBtn.classList.remove("hidden");
+          dom.tabSmtpBtn.classList.remove("hidden");
           dom.tabOpsBtn.classList.remove("hidden");
           dom.tabAdminBtn.classList.remove("hidden");
           dom.adminUserPanel.classList.remove("hidden");
@@ -2372,10 +2452,12 @@
           dom.opsPanel.classList.add("hidden");
           dom.reportPreviewPanel.classList.add("hidden");
           dom.reportDispatchPanel.classList.add("hidden");
+          dom.smtpConfigPanel.classList.add("hidden");
           dom.tabReportsBtn.classList.add("hidden");
+          dom.tabSmtpBtn.classList.add("hidden");
           dom.tabOpsBtn.classList.add("hidden");
           dom.tabAdminBtn.classList.add("hidden");
-          if (state.activeMainTab === "admin" || state.activeMainTab === "ops" || state.activeMainTab === "reports") {
+          if (state.activeMainTab === "admin" || state.activeMainTab === "ops" || state.activeMainTab === "reports" || state.activeMainTab === "smtp") {
             setMainTab("dashboard");
           }
           dom.adminUserPanel.classList.add("hidden");
@@ -2422,6 +2504,7 @@
         if (state.me && state.me.role === "admin") {
           await runDueReportDispatch();
           await loadReportDispatchPreferences();
+          await loadSmtpSettings();
         }
       }
 
@@ -2961,6 +3044,12 @@
         dom.dispatchRecipients.value = "";
         dom.dispatchEnabled.checked = false;
         dom.dispatchSummary.textContent = "尚未加载配置。";
+        dom.smtpHost.value = "";
+        dom.smtpPort.value = "587";
+        dom.smtpUser.value = "";
+        dom.smtpPass.value = "";
+        dom.smtpMailFrom.value = "";
+        dom.smtpSummary.textContent = "尚未加载 SMTP 配置。";
         dom.newRole.value = "owner";
         toggleParticipantField();
         syncGoalTypeFields();
@@ -2989,6 +3078,7 @@
         dom.dashboard.addEventListener("change", handleDashboardFormChange);
         dom.reportPreviewForm.addEventListener("submit", handleReportPreview);
         dom.reportDispatchForm.addEventListener("submit", handleReportDispatchSave);
+        dom.smtpConfigForm.addEventListener("submit", handleSmtpConfigSave);
         dom.reportSendNowBtn.addEventListener("click", handleReportSendNow);
         dom.phaseDeleteBtn.addEventListener("click", handleDeletePhase);
         dom.goalDeleteBtn.addEventListener("click", handleDeleteGoal);
@@ -3007,6 +3097,7 @@
         dom.dispatchPeriod.addEventListener("change", syncDispatchForm);
         dom.tabDashboardBtn.addEventListener("click", () => setMainTab("dashboard"));
         dom.tabReportsBtn.addEventListener("click", () => setMainTab("reports"));
+        dom.tabSmtpBtn.addEventListener("click", () => setMainTab("smtp"));
         dom.tabOpsBtn.addEventListener("click", () => setMainTab("ops"));
         dom.tabAdminBtn.addEventListener("click", () => setMainTab("admin"));
         dom.opsProjectBtn.addEventListener("click", () => setOpsTab("project"));
