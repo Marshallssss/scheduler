@@ -1091,6 +1091,7 @@
               <button id="reportExportOutlookBtn" class="btn-secondary" type="button">导出 Outlook 邮件(.eml)</button>
               <button id="reportSendNowBtn" class="btn-primary" type="button">立即发送</button>
             </div>
+            <div id="reportExportResult" class="hint" style="margin-top: 10px;">导出文件将保存到报表目录。</div>
           </section>
 
           <section class="panel report-dispatch hidden admin-only" id="reportDispatchPanel">
@@ -1402,7 +1403,6 @@
       const TOKEN_KEY = "scheduler_web_token";
       const THEME_KEY = "scheduler_web_theme";
       const REPORT_EDITOR_SPLIT_KEY = "scheduler_web_report_editor_split";
-      const DOWNLOAD_FRAME_ID = "schedulerDownloadFrame";
 
       const state = {
         token: localStorage.getItem(TOKEN_KEY) || "",
@@ -1551,6 +1551,7 @@
         reportSkipToday: document.getElementById("reportSkipToday"),
         reportExportDocxBtn: document.getElementById("reportExportDocxBtn"),
         reportExportOutlookBtn: document.getElementById("reportExportOutlookBtn"),
+        reportExportResult: document.getElementById("reportExportResult"),
         reportSendNowBtn: document.getElementById("reportSendNowBtn"),
         dispatchPeriod: document.getElementById("dispatchPeriod"),
         dispatchSendTime: document.getElementById("dispatchSendTime"),
@@ -1652,41 +1653,9 @@
         return data;
       }
 
-      function ensureDownloadFrame() {
-        let frame = document.getElementById(DOWNLOAD_FRAME_ID);
-        if (frame) return frame;
-        frame = document.createElement("iframe");
-        frame.id = DOWNLOAD_FRAME_ID;
-        frame.name = DOWNLOAD_FRAME_ID;
-        frame.style.display = "none";
-        document.body.appendChild(frame);
-        return frame;
-      }
-
-      function submitDownloadForm(method, path, fields) {
-        if (!state.token) {
-          throw new Error("未登录");
-        }
-
-        const frame = ensureDownloadFrame();
-        const form = document.createElement("form");
-        form.method = method.toUpperCase();
-        form.action = path;
-        form.target = frame.name;
-        form.style.display = "none";
-
-        Object.entries(fields || {}).forEach(([key, value]) => {
-          if (value == null) return;
-          const input = document.createElement("input");
-          input.type = "hidden";
-          input.name = key;
-          input.value = String(value);
-          form.appendChild(input);
-        });
-
-        document.body.appendChild(form);
-        form.submit();
-        form.remove();
+      function setReportExportResult(message) {
+        if (!dom.reportExportResult) return;
+        dom.reportExportResult.textContent = message;
       }
 
       function parseParticipants(raw) {
@@ -2584,29 +2553,32 @@
         }
       }
 
-      function handleReportExportDocx() {
+      async function handleReportExportDocx() {
         try {
-          submitDownloadForm("GET", "/api/reports/export-docx", {
-            period: dom.reportPeriod.value,
-            date: dom.reportDate.value,
-            access_token: state.token,
-          });
-          showStatus("Word 文档导出已发起", "ok");
+          const period = encodeURIComponent(dom.reportPeriod.value);
+          const runDate = encodeURIComponent(dom.reportDate.value);
+          const data = await requestJson(`/api/reports/export-docx?period=${period}&date=${runDate}&download=false`);
+          setReportExportResult(`Word 已导出：${data.path}`);
+          showStatus(`Word 文档已导出：${data.filename}`, "ok");
         } catch (err) {
           showStatus(err.message, "error");
         }
       }
 
-      function handleReportExportOutlook() {
+      async function handleReportExportOutlook() {
         try {
           const recipients = parseEmailList(dom.reportRecipients.value);
-          submitDownloadForm("POST", `/api/reports/export-outlook?access_token=${encodeURIComponent(state.token)}`, {
-            period: dom.reportPeriod.value,
-            run_date: dom.reportDate.value,
-            markdown: dom.reportMarkdown.value,
-            recipients_csv: recipients.join(","),
+          const data = await requestJson("/api/reports/export-outlook?download=false", {
+            method: "POST",
+            body: JSON.stringify({
+              period: dom.reportPeriod.value,
+              run_date: dom.reportDate.value,
+              markdown: dom.reportMarkdown.value,
+              recipients,
+            }),
           });
-          showStatus("Outlook 邮件导出已发起", "ok");
+          setReportExportResult(`Outlook 邮件已导出：${data.path}`);
+          showStatus(`Outlook 邮件已导出：${data.filename}`, "ok");
         } catch (err) {
           showStatus(err.message, "error");
         }
@@ -3360,6 +3332,7 @@
         setReportPreviewHtml("");
         state.reportRenderRequestSeq = 0;
         dom.reportSkipToday.checked = false;
+        setReportExportResult("导出文件将保存到报表目录。");
         dom.dispatchPeriod.value = "daily";
         dom.dispatchSendTime.value = "18:00";
         dom.dispatchRecipients.value = "";

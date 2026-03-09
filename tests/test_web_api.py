@@ -44,6 +44,7 @@ def test_web_frontend_index_and_health(settings):
     assert "项目排程与进度管理平台" in index_resp.text
     assert "导出 Word(.docx)" in index_resp.text
     assert "导出 Outlook 邮件(.eml)" in index_resp.text
+    assert "导出文件将保存到报表目录" in index_resp.text
 
     health_resp = client.get("/api/health")
     assert health_resp.status_code == 200
@@ -565,6 +566,15 @@ def test_report_preview_dispatch_preferences_and_send_now(settings):
     assert export_docx_by_query_resp.status_code == 200
     assert export_docx_by_query_resp.content.startswith(b"PK")
 
+    export_docx_meta_resp = client.get(
+        f"/api/reports/export-docx?period=daily&date={date.today().isoformat()}&download=false",
+        headers=admin_headers,
+    )
+    assert export_docx_meta_resp.status_code == 200
+    export_docx_meta = export_docx_meta_resp.json()
+    assert export_docx_meta["filename"].endswith(".docx")
+    assert export_docx_meta["path"].endswith(export_docx_meta["filename"])
+
     export_outlook_resp = client.post(
         "/api/reports/export-outlook",
         headers=admin_headers,
@@ -600,6 +610,21 @@ def test_report_preview_dispatch_preferences_and_send_now(settings):
     assert export_outlook_form_resp.headers["content-type"].startswith("message/rfc822")
     exported_form_message = BytesParser(policy=policy.default).parsebytes(export_outlook_form_resp.content)
     assert exported_form_message["To"] == "owner@example.com"
+
+    export_outlook_meta_resp = client.post(
+        "/api/reports/export-outlook?download=false",
+        headers=admin_headers,
+        json={
+            "period": "daily",
+            "run_date": date.today().isoformat(),
+            "markdown": preview["markdown"],
+            "recipients": ["owner@example.com"],
+        },
+    )
+    assert export_outlook_meta_resp.status_code == 200
+    export_outlook_meta = export_outlook_meta_resp.json()
+    assert export_outlook_meta["filename"].endswith(".eml")
+    assert export_outlook_meta["path"].endswith(export_outlook_meta["filename"])
 
     update_pref = client.put(
         "/api/report-dispatch/preferences/daily",

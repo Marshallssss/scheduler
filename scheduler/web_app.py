@@ -549,13 +549,14 @@ def create_app(settings: Settings) -> FastAPI:
             service = _build_report_dispatch_service(repo, settings)
             return {"html": service.report_service.render_html_document(payload.markdown, payload.subject)}
 
-    @app.get("/api/reports/export-docx")
+    @app.get("/api/reports/export-docx", response_model=None)
     def export_report_docx(
         period: str = Query(..., description="daily|weekly|monthly"),
         run_date: Optional[str] = Query(None, alias="date", description="YYYY-MM-DD"),
+        download: bool = Query(True, description="是否直接下载文件"),
         access_token: Optional[str] = Query(None, alias="access_token"),
         authorization: Optional[str] = Header(None),
-    ) -> FileResponse:
+    ):
         target_date = _parse_as_of(run_date)
         with session_scope(session_factory) as session:
             repo = Repository(session)
@@ -566,18 +567,26 @@ def create_app(settings: Settings) -> FastAPI:
                 file_path = service.report_service.export_report_docx(period=period, run_date=target_date)
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if not download:
+            return {
+                "path": str(file_path),
+                "filename": file_path.name,
+                "period": period,
+                "run_date": target_date.isoformat(),
+            }
         return FileResponse(
             path=file_path,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             filename=file_path.name,
         )
 
-    @app.post("/api/reports/export-outlook")
+    @app.post("/api/reports/export-outlook", response_model=None)
     async def export_report_outlook(
         request: Request,
+        download: bool = Query(True, description="是否直接下载文件"),
         access_token: Optional[str] = Query(None, alias="access_token"),
         authorization: Optional[str] = Header(None),
-    ) -> FileResponse:
+    ):
         content_type = (request.headers.get("content-type") or "").split(";", 1)[0].strip().lower()
         try:
             if content_type == "application/json":
@@ -616,6 +625,13 @@ def create_app(settings: Settings) -> FastAPI:
                 )
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if not download:
+            return {
+                "path": str(file_path),
+                "filename": file_path.name,
+                "period": payload.period,
+                "run_date": target_date.isoformat(),
+            }
         return FileResponse(
             path=file_path,
             media_type="message/rfc822",
