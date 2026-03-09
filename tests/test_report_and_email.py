@@ -5,6 +5,7 @@ from pathlib import Path
 import smtplib
 
 import pytest
+from docx import Document
 
 from scheduler.config import Settings
 from scheduler.constants import REPORT_DAILY, REPORT_MONTHLY, REPORT_WEEKLY
@@ -137,6 +138,61 @@ def test_report_includes_goal_charts_for_all_periods(session, settings, period, 
     assert "<!DOCTYPE html>" in rendered.html
     assert "report-chart-card" in rendered.html
     assert "供应商联调延迟" in rendered.html
+
+
+def test_report_docx_export_contains_chart_sections(session, settings):
+    base = date(2026, 3, 2)
+    repo = Repository(session)
+
+    project = repo.create_project(
+        name="Chart Project",
+        deadline=base + timedelta(days=15),
+        participants=[("Owner", "owner@example.com")],
+    )
+    phase = repo.add_phase(project.id, name="执行", objective="推进交付")
+    owner = repo.list_project_participants(project.id)[0]
+    goal = repo.add_goal(
+        phase_id=phase.id,
+        title="图表目标",
+        owner_participant_id=owner.id,
+        milestone_date=base + timedelta(days=2),
+        deadline=base + timedelta(days=5),
+        weight=1,
+    )
+
+    ProgressService(repo).record_progress(
+        goal.id,
+        base,
+        progress_percent=None,
+        requirement_total_count=20,
+        requirement_done_count=6,
+        progress_state="delayed",
+        risk_note="供应商联调延迟",
+        updated_by="pm",
+    )
+
+    service = ReportService(
+        repo,
+        email_service=FakeEmailService(),
+        report_output_dir=settings.expanded_report_output_dir,
+    )
+    docx_path = service.export_report_docx(period=REPORT_DAILY, run_date=base)
+
+    assert docx_path.exists()
+    assert docx_path.suffix == ".docx"
+
+    document = Document(str(docx_path))
+    paragraph_text = "\n".join(item.text for item in document.paragraphs)
+    table_text = "\n".join(cell.text for table in document.tables for row in table.rows for cell in row.cells)
+
+    assert "项目日报" in paragraph_text
+    assert "目标概览图表" in paragraph_text
+    assert "完成率区间分布" in paragraph_text
+    assert "目标状态分布" in paragraph_text
+    assert "项目 1: Chart Project" in paragraph_text
+    assert "供应商联调延迟" in paragraph_text
+    assert "图表目标" in table_text
+    assert any(table.rows and len(table.rows[0].cells) == 20 for table in document.tables)
 
 
 def test_integration_reminder_and_daily_report(session, settings):

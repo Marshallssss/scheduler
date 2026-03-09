@@ -6,6 +6,13 @@ from datetime import date, datetime
 from html import escape
 from pathlib import Path
 
+from docx import Document
+from docx.document import Document as DocxDocument
+from docx.enum.table import WD_ALIGN_VERTICAL, WD_TABLE_ALIGNMENT
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+from docx.shared import Inches, Pt
 from jinja2 import Environment, FileSystemLoader
 from markdown_it import MarkdownIt
 
@@ -75,7 +82,8 @@ class ReportService:
             raise ValueError(f"不支持的报表周期: {period}")
 
         start_date, end_date = self.period_window(period, run_date)
-        content = self._render_markdown(period=period, start_date=start_date, end_date=end_date, as_of=end_date)
+        context = self._build_render_context(period=period, start_date=start_date, end_date=end_date, as_of=end_date)
+        content = self._render_markdown(period=period, context=context)
         subject = self._subject(period, start_date, end_date)
         return RenderedReport(
             period=period,
@@ -86,6 +94,21 @@ class ReportService:
             markdown=content,
             html=self.render_html_document(content, subject),
         )
+
+    def export_report_docx(self, period: str, run_date: date) -> Path:
+        if period not in REPORT_PERIODS:
+            raise ValueError(f"不支持的报表周期: {period}")
+
+        start_date, end_date = self.period_window(period, run_date)
+        context = self._build_render_context(period=period, start_date=start_date, end_date=end_date, as_of=end_date)
+        subject = self._subject(period, start_date, end_date)
+
+        self.report_output_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        file_path = self.report_output_dir / f"{period}_{start_date}_{end_date}_{timestamp}.docx"
+        document = self._build_docx_document(period=period, subject=subject, context=context)
+        document.save(str(file_path))
+        return file_path
 
     def dispatch_report(
         self,
@@ -159,15 +182,17 @@ class ReportService:
         )
 
     def _subject(self, period: str, start_date: date, end_date: date) -> str:
+        return f"[{self._report_title(period)}] {start_date.isoformat()} ~ {end_date.isoformat()}"
+
+    def _report_title(self, period: str) -> str:
         labels = {
             REPORT_DAILY: "日报",
             REPORT_WEEKLY: "周报",
             REPORT_MONTHLY: "月报",
         }
-        return f"[项目{labels[period]}] {start_date.isoformat()} ~ {end_date.isoformat()}"
+        return f"项目{labels[period]}"
 
-    def _render_markdown(self, period: str, start_date: date, end_date: date, as_of: date) -> str:
-        template = self.env.get_template(f"{period}_report.md.j2")
+    def _build_render_context(self, period: str, start_date: date, end_date: date, as_of: date) -> dict[str, object]:
         grouped = self.repo.grouped_goal_snapshots_by_project(as_of=as_of)
         projects_context = [self._project_context(items) for _, items in sorted(grouped.items(), key=lambda x: x[0])]
         goal_details = [
@@ -180,18 +205,21 @@ class ReportService:
         rollback_count = sum(1 for update in updates if (update.note or "").strip())
         chart_context = self._goal_chart_context(goal_details)
 
-        return template.render(
-            generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            period=period,
-            start_date=start_date,
-            end_date=end_date,
-            projects=projects_context,
-            goal_details=goal_details,
-            update_count=len(updates),
-            rollback_count=rollback_count,
-            goal_progress_distribution_chart_html=chart_context["progress_distribution_chart_html"],
-            goal_state_distribution_chart_html=chart_context["state_distribution_chart_html"],
-        )
+        return {
+            "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "period": period,
+            "start_date": start_date,
+            "end_date": end_date,
+            "projects": projects_context,
+            "goal_details": goal_details,
+            "update_count": len(updates),
+            "rollback_count": rollback_count,
+            **chart_context,
+        }
+
+    def _render_markdown(self, period: str, context: dict[str, object]) -> str:
+        template = self.env.get_template(f"{period}_report.md.j2")
+        return template.render(**context)
 
     def _project_context(self, snapshots: list[GoalSnapshot]) -> dict:
         project = snapshots[0].project
@@ -255,7 +283,7 @@ class ReportService:
             "goal_progress_chart_html": self._goal_progress_chart_html(goals),
         }
 
-    def _goal_chart_context(self, goal_details: list[dict]) -> dict[str, str]:
+    def _goal_chart_context(self, goal_details: list[dict]) -> dict[str, object]:
         total = len(goal_details)
         progress_buckets = [
             self._distribution_row("0%", sum(1 for goal in goal_details if float(goal["progress"]) <= 0), total),
@@ -303,6 +331,8 @@ class ReportService:
         return {
             "progress_distribution_chart_html": self._distribution_chart_html("完成率区间分布", progress_buckets),
             "state_distribution_chart_html": self._distribution_chart_html("目标状态分布", state_rows),
+            "goal_progress_distribution_rows": progress_buckets,
+            "goal_state_distribution_rows": state_rows,
         }
 
     def _distribution_row(
@@ -317,6 +347,8 @@ class ReportService:
             "label": label,
             "count": count,
             "share": share,
+            "progress": share,
+            "meta": f"{count} 个目标 · {share:.2f}%",
             "progress_state": progress_state,
         }
 
@@ -331,8 +363,8 @@ class ReportService:
         items = "".join(
             self._progress_bar_html(
                 label=str(row["label"]),
-                progress=float(row["share"]),
-                meta=f"{int(row['count'])} 个目标 · {float(row['share']):.2f}%",
+                progress=float(row["progress"]),
+                meta=str(row["meta"]),
                 progress_state=str(row["progress_state"]),
             )
             for row in rows
@@ -471,3 +503,254 @@ class ReportService:
         if not text:
             return "-"
         return text.replace("|", r"\|").replace("\r\n", "\n").replace("\n", "<br>")
+
+    def _build_docx_document(self, period: str, subject: str, context: dict[str, object]) -> DocxDocument:
+        document = Document()
+        document.core_properties.title = subject
+
+        section = document.sections[0]
+        section.top_margin = Inches(0.75)
+        section.bottom_margin = Inches(0.75)
+        section.left_margin = Inches(0.7)
+        section.right_margin = Inches(0.7)
+
+        normal_style = document.styles["Normal"]
+        normal_style.font.size = Pt(10.5)
+
+        document.add_heading(self._report_title(period), level=0).alignment = WD_ALIGN_PARAGRAPH.LEFT
+        self._add_docx_meta_line(document, "标题", subject)
+        self._add_docx_meta_line(document, "生成时间", str(context["generated_at"]))
+        if period == REPORT_DAILY:
+            self._add_docx_meta_line(document, "周期", str(context["start_date"]))
+        else:
+            self._add_docx_meta_line(
+                document,
+                "周期",
+                f"{context['start_date']} ~ {context['end_date']}",
+            )
+        self._add_docx_meta_line(document, "进度更新条数", str(context["update_count"]))
+        self._add_docx_meta_line(document, "回退备注条数", str(context["rollback_count"]))
+
+        document.add_heading("目标概览图表", level=1)
+        self._add_docx_distribution_section(
+            document,
+            "完成率区间分布",
+            list(context["goal_progress_distribution_rows"]),
+        )
+        self._add_docx_distribution_section(
+            document,
+            "目标状态分布",
+            list(context["goal_state_distribution_rows"]),
+        )
+
+        projects = list(context["projects"])
+        if not projects:
+            document.add_paragraph("当前无活跃项目。")
+
+        for project in projects:
+            document.add_heading(f"项目 {project['id']}: {project['name']}", level=1)
+            self._add_docx_meta_line(document, "项目截止日期", str(project["deadline"]))
+            self._add_docx_meta_line(document, "总完成率", f"{float(project['overall_progress']):.2f}%")
+            self._add_docx_meta_line(
+                document,
+                "目标完成数",
+                f"{int(project['completed_goals'])}/{int(project['total_goals'])}",
+            )
+
+            self._add_docx_progress_row(
+                document,
+                label="项目整体完成率",
+                progress=float(project["overall_progress"]),
+                meta=(
+                    f"{float(project['overall_progress']):.2f}% · "
+                    f"{int(project['completed_goals'])}/{int(project['total_goals'])} 已完成"
+                ),
+                progress_state=PROGRESS_STATE_NORMAL,
+            )
+
+            document.add_heading("阶段进度图", level=2)
+            phases = list(project["phases"])
+            if not phases:
+                document.add_paragraph("暂无阶段数据。")
+            for phase in phases:
+                self._add_docx_progress_row(
+                    document,
+                    label=self._doc_text(phase["name"]),
+                    progress=float(phase["progress"]),
+                    meta=f"{int(phase['completed_goals'])}/{int(phase['total_goals'])} 已完成",
+                    progress_state=PROGRESS_STATE_NORMAL,
+                )
+
+            document.add_heading("目标进度图", level=2)
+            goals = sorted(list(project["goals"]), key=self._goal_sort_key)
+            if not goals:
+                document.add_paragraph("暂无目标数据。")
+            for goal in goals:
+                self._add_docx_goal_card(document, goal)
+
+        document.add_heading("目标明细（汇总）", level=1)
+        self._add_docx_goal_details_table(document, list(context["goal_details"]))
+        return document
+
+    def _add_docx_distribution_section(
+        self,
+        document: DocxDocument,
+        title: str,
+        rows: list[dict[str, object]],
+    ) -> None:
+        document.add_heading(title, level=2)
+        if not rows or not any(int(row["count"]) > 0 for row in rows):
+            document.add_paragraph("暂无目标数据。")
+            return
+        for row in rows:
+            self._add_docx_progress_row(
+                document,
+                label=self._doc_text(row["label"]),
+                progress=float(row["progress"]),
+                meta=self._doc_text(row["meta"]),
+                progress_state=str(row["progress_state"]),
+            )
+
+    def _add_docx_goal_card(self, document: DocxDocument, goal: dict[str, object]) -> None:
+        title = document.add_paragraph()
+        title.paragraph_format.space_after = Pt(2)
+        title_run = title.add_run(self._doc_text(goal["title"]))
+        title_run.bold = True
+        title.add_run(f"  [{self._doc_text(goal['progress_state_label'])}]")
+
+        meta = document.add_paragraph()
+        meta.paragraph_format.space_after = Pt(2)
+        meta.add_run(
+            f"{self._doc_text(goal['phase_name'])} · {self._doc_text(goal['owner'])}"
+        )
+
+        dates = document.add_paragraph()
+        dates.paragraph_format.space_after = Pt(2)
+        dates.add_run(
+            f"里程碑 {self._doc_text(goal['milestone_date'])} · 截止 {self._doc_text(goal['deadline'])}"
+        )
+
+        self._add_docx_progress_row(
+            document,
+            label="完成率",
+            progress=float(goal["progress"]),
+            meta=self._doc_text(str(goal["progress_display"]).replace("**", "")),
+            progress_state=str(goal["progress_state"]),
+        )
+
+        risk_item = self._doc_text(goal["risk_item"])
+        if risk_item != "-":
+            risk = document.add_paragraph()
+            risk.paragraph_format.space_after = Pt(8)
+            risk_run = risk.add_run(f"风险提示：{risk_item}")
+            risk_run.italic = True
+
+    def _add_docx_goal_details_table(
+        self,
+        document: DocxDocument,
+        goal_details: list[dict[str, object]],
+    ) -> None:
+        headers = ["项目", "阶段", "目标", "负责人", "完成率", "进度状态", "权重", "里程碑", "截止日期", "风险项目"]
+        table = document.add_table(rows=1, cols=len(headers))
+        table.style = "Table Grid"
+        header_cells = table.rows[0].cells
+        for index, header in enumerate(headers):
+            self._set_docx_cell_text(header_cells[index], header, bold=True, fill="DCE6F1")
+
+        rows = goal_details or [
+            {
+                "project_name": "-",
+                "phase_name": "-",
+                "title": "-",
+                "owner": "-",
+                "progress_display": "-",
+                "progress_state_label": "-",
+                "weight": "-",
+                "milestone_date": "-",
+                "deadline": "-",
+                "risk_item": "-",
+            }
+        ]
+        for goal in rows:
+            cells = table.add_row().cells
+            values = [
+                self._doc_text(goal["project_name"]),
+                self._doc_text(goal["phase_name"]),
+                self._doc_text(goal["title"]),
+                self._doc_text(goal["owner"]),
+                self._doc_text(str(goal["progress_display"]).replace("**", "")),
+                self._doc_text(goal["progress_state_label"]),
+                self._doc_text(f"{goal['weight']:.2f}" if isinstance(goal["weight"], (int, float)) else goal["weight"]),
+                self._doc_text(goal["milestone_date"]),
+                self._doc_text(goal["deadline"]),
+                self._doc_text(goal["risk_item"]),
+            ]
+            for index, value in enumerate(values):
+                self._set_docx_cell_text(cells[index], value)
+
+    def _add_docx_meta_line(self, document: DocxDocument, label: str, value: str) -> None:
+        paragraph = document.add_paragraph()
+        paragraph.paragraph_format.space_after = Pt(1)
+        run = paragraph.add_run(f"{label}: ")
+        run.bold = True
+        paragraph.add_run(value)
+
+    def _add_docx_progress_row(
+        self,
+        document: DocxDocument,
+        label: str,
+        progress: float,
+        meta: str,
+        progress_state: str,
+    ) -> None:
+        paragraph = document.add_paragraph()
+        paragraph.paragraph_format.space_after = Pt(2)
+        title_run = paragraph.add_run(label)
+        title_run.bold = True
+        paragraph.add_run(f"  {meta}")
+
+        table = document.add_table(rows=1, cols=20)
+        table.alignment = WD_TABLE_ALIGNMENT.LEFT
+        table.autofit = False
+        fill_color, track_color = self._chart_colors(progress_state)
+        filled_cells = int(round(max(0.0, min(100.0, float(progress))) / 5))
+        for index, cell in enumerate(table.rows[0].cells):
+            cell.width = Inches(0.28)
+            cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+            self._set_docx_cell_text(cell, " ", fill=(fill_color if index < filled_cells else track_color))
+
+        spacer = document.add_paragraph()
+        spacer.paragraph_format.space_after = Pt(4)
+
+    def _set_docx_cell_text(self, cell, text: str, bold: bool = False, fill: str | None = None) -> None:
+        cell.text = ""
+        paragraph = cell.paragraphs[0]
+        paragraph.paragraph_format.space_after = Pt(0)
+        run = paragraph.add_run(text)
+        run.bold = bold
+        if fill:
+            self._set_docx_cell_fill(cell, fill)
+
+    def _set_docx_cell_fill(self, cell, fill: str) -> None:
+        color = fill.lstrip("#").upper()
+        tc_pr = cell._tc.get_or_add_tcPr()
+        shd = tc_pr.find(qn("w:shd"))
+        if shd is None:
+            shd = OxmlElement("w:shd")
+            tc_pr.append(shd)
+        shd.set(qn("w:val"), "clear")
+        shd.set(qn("w:color"), "auto")
+        shd.set(qn("w:fill"), color)
+
+    def _goal_sort_key(self, goal: dict[str, object]) -> tuple[int, float, str]:
+        return (
+            0 if goal["progress_state"] == PROGRESS_STATE_DELAYED else 1,
+            float(goal["progress"]),
+            str(goal["title"]),
+        )
+
+    def _doc_text(self, value: object) -> str:
+        text = str(value).strip() if value is not None else "-"
+        if not text:
+            return "-"
+        return text.replace("<br>", "\n").replace(r"\|", "|")
