@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from email import policy
+from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -39,12 +40,12 @@ class FakeEmailService:
             msg = MIMEMultipart("alternative")
             msg.attach(MIMEText(body, "plain", "utf-8"))
             msg.attach(MIMEText(html_body, "html", "utf-8"))
-        msg["Subject"] = subject
+        msg["Subject"] = Header(subject, "utf-8").encode()
         if from_address:
             msg["From"] = from_address
         msg["To"] = ", ".join(self.normalize_recipients(recipients))
         msg["X-Unsent"] = "1"
-        return msg.as_bytes(policy=policy.SMTPUTF8)
+        return msg.as_bytes(policy=policy.SMTP)
 
     def normalize_recipients(self, recipients: list[str]) -> list[str]:
         return sorted({item.strip().lower() for item in recipients if item and item.strip()})

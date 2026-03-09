@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from email import policy
+from email.header import Header
 from email.utils import format_datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -98,7 +99,7 @@ class EmailService:
             html_body=html_body,
             from_address=from_address,
         )
-        return msg.as_bytes(policy=policy.SMTPUTF8)
+        return msg.as_bytes(policy=policy.SMTP)
 
     def build_message(
         self,
@@ -115,7 +116,7 @@ class EmailService:
             msg = MIMEMultipart("alternative")
             msg.attach(MIMEText(body, "plain", "utf-8"))
             msg.attach(MIMEText(html_body, "html", "utf-8"))
-        msg["Subject"] = subject
+        msg["Subject"] = Header(subject, "utf-8").encode()
         if from_address and from_address.strip():
             msg["From"] = from_address.strip()
         msg["To"] = ", ".join(clean_recipients)

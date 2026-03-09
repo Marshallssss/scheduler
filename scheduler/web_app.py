@@ -4,10 +4,11 @@ from collections import defaultdict
 from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
+from urllib.parse import parse_qs
 
-from fastapi import FastAPI, Header, HTTPException, Query, Response
+from fastapi import FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy.exc import IntegrityError
 
 from scheduler.config import Settings
@@ -156,7 +157,9 @@ def _parse_as_of(raw: Optional[str]) -> date:
         raise HTTPException(status_code=400, detail=f"日期格式错误，应为 YYYY-MM-DD: {raw}") from exc
 
 
-def _extract_bearer_token(authorization: Optional[str]) -> str:
+def _extract_bearer_token(authorization: Optional[str], access_token: Optional[str] = None) -> str:
+    if access_token is not None and access_token.strip():
+        return access_token.strip()
     if authorization is None:
         raise HTTPException(status_code=401, detail="未登录")
     prefix = "Bearer "
@@ -203,8 +206,9 @@ def _require_auth_user(
     repo: Repository,
     auth_service: AuthService,
     authorization: Optional[str],
+    access_token: Optional[str] = None,
 ) -> tuple[UserAccount, Optional[Participant], AuthClaims]:
-    token = _extract_bearer_token(authorization)
+    token = _extract_bearer_token(authorization, access_token=access_token)
     claims = auth_service.parse_token(token)
     if claims is None:
         raise HTTPException(status_code=401, detail="token 无效或已过期")
@@ -549,12 +553,13 @@ def create_app(settings: Settings) -> FastAPI:
     def export_report_docx(
         period: str = Query(..., description="daily|weekly|monthly"),
         run_date: Optional[str] = Query(None, alias="date", description="YYYY-MM-DD"),
+        access_token: Optional[str] = Query(None, alias="access_token"),
         authorization: Optional[str] = Header(None),
     ) -> FileResponse:
         target_date = _parse_as_of(run_date)
         with session_scope(session_factory) as session:
             repo = Repository(session)
-            user, _, _ = _require_auth_user(repo, auth_service, authorization)
+            user, _, _ = _require_auth_user(repo, auth_service, authorization, access_token=access_token)
             _ensure_admin(user)
             service = _build_report_dispatch_service(repo, settings)
             try:
@@ -568,13 +573,37 @@ def create_app(settings: Settings) -> FastAPI:
         )
 
     @app.post("/api/reports/export-outlook")
-    def export_report_outlook(
-        payload: ReportOutlookExportInput,
+    async def export_report_outlook(
+        request: Request,
+        access_token: Optional[str] = Query(None, alias="access_token"),
         authorization: Optional[str] = Header(None),
     ) -> FileResponse:
+        content_type = (request.headers.get("content-type") or "").split(";", 1)[0].strip().lower()
+        try:
+            if content_type == "application/json":
+                payload = ReportOutlookExportInput.model_validate(await request.json())
+            else:
+                body_text = (await request.body()).decode("utf-8")
+                form = parse_qs(body_text, keep_blank_values=True)
+                run_date_raw = (form.get("run_date", [""])[0] or "").strip()
+                recipients_csv = (form.get("recipients_csv", [""])[0] or "").strip()
+                recipients = [
+                    item.strip().lower()
+                    for item in recipients_csv.replace("\n", ",").split(",")
+                    if item and item.strip()
+                ]
+                payload = ReportOutlookExportInput(
+                    period=(form.get("period", [""])[0] or "").strip(),
+                    run_date=_parse_as_of(run_date_raw) if run_date_raw else None,
+                    markdown=form.get("markdown", [None])[0],
+                    recipients=recipients or None,
+                )
+        except (ValidationError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
         with session_scope(session_factory) as session:
             repo = Repository(session)
-            user, _, _ = _require_auth_user(repo, auth_service, authorization)
+            user, _, _ = _require_auth_user(repo, auth_service, authorization, access_token=access_token)
             _ensure_admin(user)
             service = _build_report_dispatch_service(repo, settings)
             target_date = payload.run_date if payload.run_date is not None else date.today()

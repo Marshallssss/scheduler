@@ -242,7 +242,10 @@ def test_report_outlook_export_contains_mail_headers_and_html(session, settings)
     assert eml_path.exists()
     assert eml_path.suffix == ".eml"
 
-    message = BytesParser(policy=policy.default).parsebytes(eml_path.read_bytes())
+    raw_bytes = eml_path.read_bytes()
+    assert b"Subject: =?utf-8?" in raw_bytes
+
+    message = BytesParser(policy=policy.default).parsebytes(raw_bytes)
     assert message["Subject"] is not None and "项目日报" in message["Subject"]
     assert message["To"] == "owner@example.com"
     assert message["X-Unsent"] == "1"

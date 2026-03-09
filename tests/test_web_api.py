@@ -558,6 +558,13 @@ def test_report_preview_dispatch_preferences_and_send_now(settings):
     assert "项目日报" in exported_text
     assert "目标概览图表" in exported_text
 
+    admin_token = admin_headers["Authorization"].split(" ", 1)[1]
+    export_docx_by_query_resp = client.get(
+        f"/api/reports/export-docx?period=daily&date={date.today().isoformat()}&access_token={admin_token}",
+    )
+    assert export_docx_by_query_resp.status_code == 200
+    assert export_docx_by_query_resp.content.startswith(b"PK")
+
     export_outlook_resp = client.post(
         "/api/reports/export-outlook",
         headers=admin_headers,
@@ -571,6 +578,7 @@ def test_report_preview_dispatch_preferences_and_send_now(settings):
     assert export_outlook_resp.status_code == 200
     assert export_outlook_resp.headers["content-type"].startswith("message/rfc822")
     assert "attachment;" in export_outlook_resp.headers["content-disposition"]
+    assert b"Subject: =?utf-8?" in export_outlook_resp.content
     exported_message = BytesParser(policy=policy.default).parsebytes(export_outlook_resp.content)
     assert exported_message["Subject"] is not None and "项目日报" in exported_message["Subject"]
     assert exported_message["To"] == "owner@example.com"
@@ -578,6 +586,20 @@ def test_report_preview_dispatch_preferences_and_send_now(settings):
     html_part = exported_message.get_body(preferencelist=("html",))
     assert html_part is not None and "report-doc" in html_part.get_content()
     assert "供应商联调延迟" in html_part.get_content()
+
+    export_outlook_form_resp = client.post(
+        f"/api/reports/export-outlook?access_token={admin_token}",
+        data={
+            "period": "daily",
+            "run_date": date.today().isoformat(),
+            "markdown": preview["markdown"],
+            "recipients_csv": "owner@example.com",
+        },
+    )
+    assert export_outlook_form_resp.status_code == 200
+    assert export_outlook_form_resp.headers["content-type"].startswith("message/rfc822")
+    exported_form_message = BytesParser(policy=policy.default).parsebytes(export_outlook_form_resp.content)
+    assert exported_form_message["To"] == "owner@example.com"
 
     update_pref = client.put(
         "/api/report-dispatch/preferences/daily",

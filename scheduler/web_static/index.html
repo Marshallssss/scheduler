@@ -1402,6 +1402,7 @@
       const TOKEN_KEY = "scheduler_web_token";
       const THEME_KEY = "scheduler_web_theme";
       const REPORT_EDITOR_SPLIT_KEY = "scheduler_web_report_editor_split";
+      const DOWNLOAD_FRAME_ID = "schedulerDownloadFrame";
 
       const state = {
         token: localStorage.getItem(TOKEN_KEY) || "",
@@ -1651,48 +1652,41 @@
         return data;
       }
 
-      async function requestBlob(path, options = {}) {
-        const headers = {
-          ...authHeader(),
-          ...(options.headers || {}),
-        };
-        const resp = await fetch(path, { ...options, headers });
-        const blob = await resp.blob();
-
-        if (!resp.ok) {
-          let detail = `请求失败: ${resp.status}`;
-          try {
-            const data = JSON.parse(await blob.text());
-            if (data && data.detail) {
-              detail = data.detail;
-            }
-          } catch (err) {
-            detail = `请求失败: ${resp.status}`;
-          }
-          if (resp.status === 401) {
-            clearAuth();
-            updateAuthUi();
-          }
-          throw new Error(detail);
-        }
-
-        const disposition = resp.headers.get("content-disposition") || "";
-        const filenameMatch = disposition.match(/filename="?([^"]+)"?/i);
-        return {
-          blob,
-          filename: filenameMatch ? filenameMatch[1] : "download.bin",
-        };
+      function ensureDownloadFrame() {
+        let frame = document.getElementById(DOWNLOAD_FRAME_ID);
+        if (frame) return frame;
+        frame = document.createElement("iframe");
+        frame.id = DOWNLOAD_FRAME_ID;
+        frame.name = DOWNLOAD_FRAME_ID;
+        frame.style.display = "none";
+        document.body.appendChild(frame);
+        return frame;
       }
 
-      function triggerDownload(blob, filename) {
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement("a");
-        anchor.href = url;
-        anchor.download = filename;
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 0);
+      function submitDownloadForm(method, path, fields) {
+        if (!state.token) {
+          throw new Error("未登录");
+        }
+
+        const frame = ensureDownloadFrame();
+        const form = document.createElement("form");
+        form.method = method.toUpperCase();
+        form.action = path;
+        form.target = frame.name;
+        form.style.display = "none";
+
+        Object.entries(fields || {}).forEach(([key, value]) => {
+          if (value == null) return;
+          const input = document.createElement("input");
+          input.type = "hidden";
+          input.name = key;
+          input.value = String(value);
+          form.appendChild(input);
+        });
+
+        document.body.appendChild(form);
+        form.submit();
+        form.remove();
       }
 
       function parseParticipants(raw) {
@@ -2590,36 +2584,29 @@
         }
       }
 
-      async function handleReportExportDocx() {
+      function handleReportExportDocx() {
         try {
-          const period = encodeURIComponent(dom.reportPeriod.value);
-          const runDate = encodeURIComponent(dom.reportDate.value);
-          const { blob, filename } = await requestBlob(`/api/reports/export-docx?period=${period}&date=${runDate}`);
-          triggerDownload(blob, filename);
-          showStatus(`Word 文档已导出：${filename}`, "ok");
+          submitDownloadForm("GET", "/api/reports/export-docx", {
+            period: dom.reportPeriod.value,
+            date: dom.reportDate.value,
+            access_token: state.token,
+          });
+          showStatus("Word 文档导出已发起", "ok");
         } catch (err) {
           showStatus(err.message, "error");
         }
       }
 
-      async function handleReportExportOutlook() {
+      function handleReportExportOutlook() {
         try {
           const recipients = parseEmailList(dom.reportRecipients.value);
-          const payload = {
+          submitDownloadForm("POST", `/api/reports/export-outlook?access_token=${encodeURIComponent(state.token)}`, {
             period: dom.reportPeriod.value,
             run_date: dom.reportDate.value,
             markdown: dom.reportMarkdown.value,
-            recipients,
-          };
-          const { blob, filename } = await requestBlob("/api/reports/export-outlook", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
+            recipients_csv: recipients.join(","),
           });
-          triggerDownload(blob, filename);
-          showStatus(`Outlook 邮件已导出：${filename}`, "ok");
+          showStatus("Outlook 邮件导出已发起", "ok");
         } catch (err) {
           showStatus(err.message, "error");
         }
