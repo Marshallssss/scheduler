@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+from email import policy
+from email.parser import BytesParser
 from pathlib import Path
 import smtplib
 
@@ -193,6 +195,63 @@ def test_report_docx_export_contains_chart_sections(session, settings):
     assert "供应商联调延迟" in paragraph_text
     assert "图表目标" in table_text
     assert any(table.rows and len(table.rows[0].cells) == 20 for table in document.tables)
+
+
+def test_report_outlook_export_contains_mail_headers_and_html(session, settings):
+    base = date(2026, 3, 2)
+    repo = Repository(session)
+
+    project = repo.create_project(
+        name="Chart Project",
+        deadline=base + timedelta(days=15),
+        participants=[("Owner", "owner@example.com")],
+    )
+    phase = repo.add_phase(project.id, name="执行", objective="推进交付")
+    owner = repo.list_project_participants(project.id)[0]
+    goal = repo.add_goal(
+        phase_id=phase.id,
+        title="图表目标",
+        owner_participant_id=owner.id,
+        milestone_date=base + timedelta(days=2),
+        deadline=base + timedelta(days=5),
+        weight=1,
+    )
+
+    ProgressService(repo).record_progress(
+        goal.id,
+        base,
+        progress_percent=None,
+        requirement_total_count=20,
+        requirement_done_count=6,
+        progress_state="delayed",
+        risk_note="供应商联调延迟",
+        updated_by="pm",
+    )
+
+    service = ReportService(
+        repo,
+        email_service=FakeEmailService(),
+        report_output_dir=settings.expanded_report_output_dir,
+    )
+    eml_path = service.export_report_outlook_email(
+        period=REPORT_DAILY,
+        run_date=base,
+        recipients=["owner@example.com"],
+    )
+
+    assert eml_path.exists()
+    assert eml_path.suffix == ".eml"
+
+    message = BytesParser(policy=policy.default).parsebytes(eml_path.read_bytes())
+    assert message["Subject"] is not None and "项目日报" in message["Subject"]
+    assert message["To"] == "owner@example.com"
+    assert message["X-Unsent"] == "1"
+
+    plain_part = message.get_body(preferencelist=("plain",))
+    html_part = message.get_body(preferencelist=("html",))
+    assert plain_part is not None and "目标概览图表" in plain_part.get_content()
+    assert html_part is not None and "report-doc" in html_part.get_content()
+    assert "供应商联调延迟" in html_part.get_content()
 
 
 def test_integration_reminder_and_daily_report(session, settings):

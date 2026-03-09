@@ -109,6 +109,13 @@ class ReportHtmlRenderInput(BaseModel):
     subject: str = Field("报表预览", min_length=1)
 
 
+class ReportOutlookExportInput(BaseModel):
+    period: str = Field(..., min_length=5)
+    run_date: Optional[date] = None
+    markdown: Optional[str] = None
+    recipients: Optional[list[str]] = None
+
+
 class ReportDispatchPreferenceUpdateInput(BaseModel):
     send_time: str = Field(..., min_length=5, max_length=5)
     recipients: list[str] = Field(default_factory=list)
@@ -557,6 +564,32 @@ def create_app(settings: Settings) -> FastAPI:
         return FileResponse(
             path=file_path,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            filename=file_path.name,
+        )
+
+    @app.post("/api/reports/export-outlook")
+    def export_report_outlook(
+        payload: ReportOutlookExportInput,
+        authorization: Optional[str] = Header(None),
+    ) -> FileResponse:
+        with session_scope(session_factory) as session:
+            repo = Repository(session)
+            user, _, _ = _require_auth_user(repo, auth_service, authorization)
+            _ensure_admin(user)
+            service = _build_report_dispatch_service(repo, settings)
+            target_date = payload.run_date if payload.run_date is not None else date.today()
+            try:
+                file_path = service.report_service.export_report_outlook_email(
+                    period=payload.period,
+                    run_date=target_date,
+                    recipients=payload.recipients,
+                    markdown=payload.markdown,
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return FileResponse(
+            path=file_path,
+            media_type="message/rfc822",
             filename=file_path.name,
         )
 

@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from email import policy
+from email.utils import format_datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.message import Message
+from datetime import datetime
 import logging
 import smtplib
 import time
@@ -26,7 +30,7 @@ class EmailService:
         body: str,
         html_body: str | None = None,
     ) -> bool:
-        clean_recipients = sorted({item.strip().lower() for item in recipients if item and item.strip()})
+        clean_recipients = self.normalize_recipients(recipients)
         if not clean_recipients:
             self.logger.warning("skip email: empty recipients")
             return False
@@ -63,15 +67,13 @@ class EmailService:
         body: str,
         html_body: str | None = None,
     ) -> None:
-        if html_body is None:
-            msg = MIMEText(body, "plain", "utf-8")
-        else:
-            msg = MIMEMultipart("alternative")
-            msg.attach(MIMEText(body, "plain", "utf-8"))
-            msg.attach(MIMEText(html_body, "html", "utf-8"))
-        msg["Subject"] = subject
-        msg["From"] = self.settings.mail_from
-        msg["To"] = ", ".join(recipients)
+        msg = self.build_message(
+            recipients=recipients,
+            subject=subject,
+            body=body,
+            html_body=html_body,
+            from_address=self.settings.mail_from,
+        )
 
         with smtplib.SMTP(self.settings.smtp_host, self.settings.smtp_port, timeout=30) as smtp:
             smtp.ehlo()
@@ -80,3 +82,46 @@ class EmailService:
             if self.settings.smtp_user:
                 smtp.login(self.settings.smtp_user, self.settings.smtp_pass)
             smtp.sendmail(self.settings.mail_from, recipients, msg.as_string())
+
+    def build_email_bytes(
+        self,
+        recipients: list[str],
+        subject: str,
+        body: str,
+        html_body: str | None = None,
+        from_address: str | None = None,
+    ) -> bytes:
+        msg = self.build_message(
+            recipients=recipients,
+            subject=subject,
+            body=body,
+            html_body=html_body,
+            from_address=from_address,
+        )
+        return msg.as_bytes(policy=policy.SMTPUTF8)
+
+    def build_message(
+        self,
+        recipients: list[str],
+        subject: str,
+        body: str,
+        html_body: str | None = None,
+        from_address: str | None = None,
+    ) -> Message:
+        clean_recipients = self.normalize_recipients(recipients)
+        if html_body is None:
+            msg: Message = MIMEText(body, "plain", "utf-8")
+        else:
+            msg = MIMEMultipart("alternative")
+            msg.attach(MIMEText(body, "plain", "utf-8"))
+            msg.attach(MIMEText(html_body, "html", "utf-8"))
+        msg["Subject"] = subject
+        if from_address and from_address.strip():
+            msg["From"] = from_address.strip()
+        msg["To"] = ", ".join(clean_recipients)
+        msg["Date"] = format_datetime(datetime.now().astimezone())
+        msg["X-Unsent"] = "1"
+        return msg
+
+    def normalize_recipients(self, recipients: list[str]) -> list[str]:
+        return sorted({item.strip().lower() for item in recipients if item and item.strip()})

@@ -110,6 +110,37 @@ class ReportService:
         document.save(str(file_path))
         return file_path
 
+    def export_report_outlook_email(
+        self,
+        period: str,
+        run_date: date,
+        recipients: list[str] | None = None,
+        markdown: str | None = None,
+    ) -> Path:
+        rendered = self.render_report(period=period, run_date=run_date)
+        content = rendered.markdown if markdown is None else markdown
+        html_content = rendered.html if markdown is None else self.render_html_document(content, rendered.subject)
+
+        if recipients is None:
+            use_recipients = self.email_service.normalize_recipients(
+                [participant.email for participant in self.repo.list_all_participants() if participant.email]
+            )
+        else:
+            use_recipients = self.email_service.normalize_recipients(recipients)
+
+        self.report_output_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        file_path = self.report_output_dir / f"{period}_{rendered.start_date}_{rendered.end_date}_{timestamp}.eml"
+        payload = self.email_service.build_email_bytes(
+            recipients=use_recipients,
+            subject=rendered.subject,
+            body=content,
+            html_body=html_content,
+            from_address=getattr(getattr(self.email_service, "settings", None), "mail_from", ""),
+        )
+        file_path.write_bytes(payload)
+        return file_path
+
     def dispatch_report(
         self,
         period: str,

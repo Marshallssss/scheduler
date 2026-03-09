@@ -1086,7 +1086,10 @@
                 跳过今日定时并立即发送
               </label>
             </div>
-            <button id="reportSendNowBtn" class="btn-primary" type="button">立即发送</button>
+            <div class="tab-buttons">
+              <button id="reportExportOutlookBtn" class="btn-secondary" type="button">导出 Outlook 邮件(.eml)</button>
+              <button id="reportSendNowBtn" class="btn-primary" type="button">立即发送</button>
+            </div>
           </section>
 
           <section class="panel report-dispatch hidden admin-only" id="reportDispatchPanel">
@@ -1544,6 +1547,7 @@
         reportRenderBtn: document.getElementById("reportRenderBtn"),
         reportHtmlPreview: document.getElementById("reportHtmlPreview"),
         reportSkipToday: document.getElementById("reportSkipToday"),
+        reportExportOutlookBtn: document.getElementById("reportExportOutlookBtn"),
         reportSendNowBtn: document.getElementById("reportSendNowBtn"),
         dispatchPeriod: document.getElementById("dispatchPeriod"),
         dispatchSendTime: document.getElementById("dispatchSendTime"),
@@ -1643,6 +1647,50 @@
           throw new Error(detail);
         }
         return data;
+      }
+
+      async function requestBlob(path, options = {}) {
+        const headers = {
+          ...authHeader(),
+          ...(options.headers || {}),
+        };
+        const resp = await fetch(path, { ...options, headers });
+        const blob = await resp.blob();
+
+        if (!resp.ok) {
+          let detail = `请求失败: ${resp.status}`;
+          try {
+            const data = JSON.parse(await blob.text());
+            if (data && data.detail) {
+              detail = data.detail;
+            }
+          } catch (err) {
+            detail = `请求失败: ${resp.status}`;
+          }
+          if (resp.status === 401) {
+            clearAuth();
+            updateAuthUi();
+          }
+          throw new Error(detail);
+        }
+
+        const disposition = resp.headers.get("content-disposition") || "";
+        const filenameMatch = disposition.match(/filename="?([^"]+)"?/i);
+        return {
+          blob,
+          filename: filenameMatch ? filenameMatch[1] : "download.bin",
+        };
+      }
+
+      function triggerDownload(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 0);
       }
 
       function parseParticipants(raw) {
@@ -2540,6 +2588,29 @@
         }
       }
 
+      async function handleReportExportOutlook() {
+        try {
+          const recipients = parseEmailList(dom.reportRecipients.value);
+          const payload = {
+            period: dom.reportPeriod.value,
+            run_date: dom.reportDate.value,
+            markdown: dom.reportMarkdown.value,
+            recipients,
+          };
+          const { blob, filename } = await requestBlob("/api/reports/export-outlook", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
+          triggerDownload(blob, filename);
+          showStatus(`Outlook 邮件已导出：${filename}`, "ok");
+        } catch (err) {
+          showStatus(err.message, "error");
+        }
+      }
+
       async function handleReportDispatchSave(event) {
         event.preventDefault();
         try {
@@ -3331,6 +3402,7 @@
         dom.reportMarkdown.addEventListener("input", scheduleReportRenderPreview);
         dom.reportDispatchForm.addEventListener("submit", handleReportDispatchSave);
         dom.smtpConfigForm.addEventListener("submit", handleSmtpConfigSave);
+        dom.reportExportOutlookBtn.addEventListener("click", handleReportExportOutlook);
         dom.reportSendNowBtn.addEventListener("click", handleReportSendNow);
         dom.phaseDeleteBtn.addEventListener("click", handleDeletePhase);
         dom.goalDeleteBtn.addEventListener("click", handleDeleteGoal);

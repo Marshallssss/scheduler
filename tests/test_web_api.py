@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from io import BytesIO
 from datetime import date, timedelta
+from email import policy
+from email.parser import BytesParser
 
 from docx import Document
 from fastapi.testclient import TestClient
@@ -553,6 +555,27 @@ def test_report_preview_dispatch_preferences_and_send_now(settings):
     exported_text = "\n".join(item.text for item in exported_doc.paragraphs)
     assert "项目日报" in exported_text
     assert "目标概览图表" in exported_text
+
+    export_outlook_resp = client.post(
+        "/api/reports/export-outlook",
+        headers=admin_headers,
+        json={
+            "period": "daily",
+            "run_date": date.today().isoformat(),
+            "markdown": preview["markdown"],
+            "recipients": ["owner@example.com"],
+        },
+    )
+    assert export_outlook_resp.status_code == 200
+    assert export_outlook_resp.headers["content-type"].startswith("message/rfc822")
+    assert "attachment;" in export_outlook_resp.headers["content-disposition"]
+    exported_message = BytesParser(policy=policy.default).parsebytes(export_outlook_resp.content)
+    assert exported_message["Subject"] is not None and "项目日报" in exported_message["Subject"]
+    assert exported_message["To"] == "owner@example.com"
+    assert exported_message["X-Unsent"] == "1"
+    html_part = exported_message.get_body(preferencelist=("html",))
+    assert html_part is not None and "report-doc" in html_part.get_content()
+    assert "供应商联调延迟" in html_part.get_content()
 
     update_pref = client.put(
         "/api/report-dispatch/preferences/daily",
