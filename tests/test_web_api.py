@@ -42,6 +42,8 @@ def test_web_frontend_index_and_health(settings):
     index_resp = client.get("/")
     assert index_resp.status_code == 200
     assert "项目排程与进度管理平台" in index_resp.text
+    assert "导出 Word(.docx)" in index_resp.text
+    assert "导出 Outlook 邮件(.eml)" in index_resp.text
 
     health_resp = client.get("/api/health")
     assert health_resp.status_code == 200
