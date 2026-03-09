@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, Header, HTTPException, Query, Response
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
 
@@ -537,6 +537,28 @@ def create_app(settings: Settings) -> FastAPI:
             _ensure_admin(user)
             service = _build_report_dispatch_service(repo, settings)
             return {"html": service.report_service.render_html_document(payload.markdown, payload.subject)}
+
+    @app.get("/api/reports/export-docx")
+    def export_report_docx(
+        period: str = Query(..., description="daily|weekly|monthly"),
+        run_date: Optional[str] = Query(None, alias="date", description="YYYY-MM-DD"),
+        authorization: Optional[str] = Header(None),
+    ) -> FileResponse:
+        target_date = _parse_as_of(run_date)
+        with session_scope(session_factory) as session:
+            repo = Repository(session)
+            user, _, _ = _require_auth_user(repo, auth_service, authorization)
+            _ensure_admin(user)
+            service = _build_report_dispatch_service(repo, settings)
+            try:
+                file_path = service.report_service.export_report_docx(period=period, run_date=target_date)
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return FileResponse(
+            path=file_path,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            filename=file_path.name,
+        )
 
     @app.post("/api/reports/send-now")
     def send_report_now(payload: ReportSendNowInput, authorization: Optional[str] = Header(None)) -> dict:

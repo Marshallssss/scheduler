@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from io import BytesIO
 from datetime import date, timedelta
 
+from docx import Document
 from fastapi.testclient import TestClient
 
 from scheduler.web_app import create_app
@@ -536,6 +538,21 @@ def test_report_preview_dispatch_preferences_and_send_now(settings):
     )
     assert render_html_resp.status_code == 200
     assert "report-doc" in render_html_resp.json()["html"]
+
+    export_docx_resp = client.get(
+        f"/api/reports/export-docx?period=daily&date={date.today().isoformat()}",
+        headers=admin_headers,
+    )
+    assert export_docx_resp.status_code == 200
+    assert export_docx_resp.headers["content-type"].startswith(
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+    assert "attachment;" in export_docx_resp.headers["content-disposition"]
+    assert export_docx_resp.content.startswith(b"PK")
+    exported_doc = Document(BytesIO(export_docx_resp.content))
+    exported_text = "\n".join(item.text for item in exported_doc.paragraphs)
+    assert "项目日报" in exported_text
+    assert "目标概览图表" in exported_text
 
     update_pref = client.put(
         "/api/report-dispatch/preferences/daily",
