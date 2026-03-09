@@ -29,6 +29,12 @@ dev = [
 [project.scripts]
 scheduler = "scheduler.cli:app"
 
+[tool.setuptools.packages.find]
+include = ["scheduler*"]
+
+[tool.setuptools.package-data]
+scheduler = ["templates/*.j2", "web_static/*.html"]
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
